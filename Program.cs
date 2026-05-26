@@ -1,10 +1,34 @@
+using CareerHub.Api.Services;
+using Microsoft.AspNetCore.Mvc;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+
+builder.Services.AddSingleton< JobService >();
 var app = builder.Build();
+
+//Get jobs and return available jobs
+app.MapGet("/jobs",async (JobService jobService) =>
+{
+    var jobs = await jobService.GetAllJobsAsync();
+    return Results.Ok(jobs);
+})
+.WithName("GetAllJobs");
+
+//Get jobs id
+app.MapGet("/jobs/{id:int}", async (int id, JobService jobService) =>
+{
+    var job = await jobService.GetJobByIdAsync(id);
+    if(job == null)
+    {
+        return Results.NotFound(new{Message = $"Job Listing with ID {id} not found"});
+    }
+    return Results.Ok(job);
+})
+.WithName("GetJobById");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

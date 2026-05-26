@@ -11,7 +11,7 @@ Minimal APIs drastically reduce boilerplate code, offer superior performance, an
 
 ---
 
-## Prerequisites
+##  Prerequisites
 
 To run this project locally, you need to have the following installed on your system:
 * **.NET 10.0 SDK** (Software Development Kit) or higher

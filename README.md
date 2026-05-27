@@ -11,7 +11,7 @@ Minimal APIs drastically reduce boilerplate code, offer superior performance, an
 
 ---
 
-## 📋 Prerequisites
+##  Prerequisites
 
 To run this project locally, you need to have the following installed on your system:
 * **.NET 10.0 SDK** (Software Development Kit) or higher
@@ -74,4 +74,32 @@ Access the Scalar API documentation dashboard here:
 
 ```plaintext
 http://localhost:5011/scalar/v1
+
 ```
+
+## Assignment 1.2 :API Design Decisions
+
+### 1. PostedAt Field Placement
+The PostedAt timestamp is set automatically by the server at the exact time a job is stored to preserve data integrity and audit logs, so it belongs in the JobResponse for clients to see, but must never be in CreateJobRequest to prevent users from forging posting timelines.
+
+### 2. Salary Cross-Field Validation Approach
+To enforce the business rule that SalaryMax must be greater than SalaryMin when both are provided, we implemented the IValidatableObject interface directly inside our request DTOs (CreateJobRequest and UpdateJobRequest). 
+
+**Why this approach was chosen:**
+ - Keeps Controllers Clean: It prevents validation logic from cluttering our controller actions, adhering to the Single Responsibility.
+ - Fails Fast: This framework immediately intercepts invalid payloads and rejects them with a 400 Bad Request problem details reponse, before it can get to any controller or service code.
+
+
+
+### 3. PUT Status Code Choice: 
+I decided to return a 200 OK status accompanied by the fully updated JobResponse in the response body, rather than a silent 204 No Content.
+
+**Why this is the right call:**
+* **Frontend Efficiency:** Returning the updated resource means the React frontend would immediately receive the new state. It can update its local UI state instantly without being forced to execute a secondary GET /jobs/{id} request, to fetch the changes.Because our API generates a dynamic, read-only SalaryDisplay string on the fly during mapping, returning a 200 OK with the body allows the client to instantly see and render the newly formatted string directly after an update.
+
+### 4. DELETE Behavior for a Missing ID:
+
+When a client attempts to delete a job ID that does not exist in the database, the API returns a 404 Not Found Problem Details payload instead of a generic 204 No Content.
+
+**Why this is the right call:**
+While some REST patterns argue that a delete on a missing item has a "successful" outcome, a job board is highly dynamic. If an ID is missing, it means the client is operating on old data. Throwing a 404 immediately alerts the frontend application or API consumer if they have a routing bug or if another administrator already deleted that exact job listing a few seconds prior eliminating any silent failures

@@ -1,3 +1,5 @@
+using System;
+using CareerHub.Api.Enums;
 namespace CareerHub.Api.Models;
 
 public class JobListing
@@ -7,7 +9,10 @@ public class JobListing
     public string Description { get; set; } = string.Empty;
     public string Company { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
-    public string JobType { get; set; } = string.Empty; //type is remote, fulltime
+    public JobType Type { get; set; }
 
+    public DateTime PostedAt {get; set;}
+
+    public bool IsActive {get; set;}
 
 }

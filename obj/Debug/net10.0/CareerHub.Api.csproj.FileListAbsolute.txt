@@ -8,6 +8,7 @@ C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\CareerHub.Api.dll
 C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\CareerHub.Api.pdb
 C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Microsoft.OpenApi.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Scalar.AspNetCore.dll
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\CareerHub.Api.csproj.AssemblyReference.cache
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\rpswa.dswa.cache.json
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\CareerHub.Api.GeneratedMSBuildEditorConfig.editorconfig

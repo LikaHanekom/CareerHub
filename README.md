@@ -74,4 +74,10 @@ Access the Scalar API documentation dashboard here:
 
 ```plaintext
 http://localhost:5011/scalar/v1
+
 ```
+
+## Assignment 1.2 :API Design Decisions
+
+### 1. PostedAt Field Placement
+The PostedAt timestamp is set automatically by the server at the exact time a job is stored to preserve data integrity and audit logs, so it belongs in the JobResponse for clients to see, but must never be in CreateJobRequest to prevent users from forging posting timelines.

@@ -81,3 +81,10 @@ http://localhost:5011/scalar/v1
 
 ### 1. PostedAt Field Placement
 The PostedAt timestamp is set automatically by the server at the exact time a job is stored to preserve data integrity and audit logs, so it belongs in the JobResponse for clients to see, but must never be in CreateJobRequest to prevent users from forging posting timelines.
+
+### 2. Salary Cross-Field Validation Approach
+To enforce the business rule that SalaryMax must be greater than SalaryMin when both are provided, we implemented the IValidatableObject interface directly inside our request DTOs (CreateJobRequest and UpdateJobRequest). 
+
+**Why this approach was chosen:**
+ - Keeps Controllers Clean: It prevents validation logic from cluttering our controller actions, adhering to the Single Responsibility.
+ - Fails Fast: This framework immediately intercepts invalid payloads and rejects them with a 400 Bad Request problem details reponse, before it can get to any controller or service code.

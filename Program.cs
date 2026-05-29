@@ -1,11 +1,16 @@
 using Scalar.AspNetCore;
 using CareerHub.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using CareerHub.Api.Middleware;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Configure the global Problem Details pipeline (Assignment Part 4 requirement)
+builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 builder.Services.AddProblemDetails();
 
 // 2. Register Controllers and configure Enums to serialize as Strings instead of numbers
@@ -22,6 +27,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<JobService>();
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

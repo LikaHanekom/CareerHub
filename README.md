@@ -103,3 +103,10 @@ When a client attempts to delete a job ID that does not exist in the database, t
 
 **Why this is the right call:**
 While some REST patterns argue that a delete on a missing item has a "successful" outcome, a job board is highly dynamic. If an ID is missing, it means the client is operating on old data. Throwing a 404 immediately alerts the frontend application or API consumer if they have a routing bug or if another administrator already deleted that exact job listing a few seconds prior eliminating any silent failures
+
+## Assignment 1.3 :
+**Controller thinning:**
+Before, controllers could get really messy, with each method checking if(job == null) and then manually returning an HTTP action result. This caused a lot of duplicate code and made the controller too tightly coupled to the web layer. By refactoring the code to throw custom domain exceptions like JobNotFoundException, the business logic is successfully decoupled from the transport layer. The controller endpoints are thinned out so they only have to focus on the good ath. Meanwhile, a centralized middleware pipeline using .NET 10's IExceptionHandler acts as a global safety net, automatically catching these exceptions and translating them into uniform, RFC 7807-compliant Problem Details JSON payloads
+
+**Structured Logging:**
+Relying on standard Console.WriteLine string concatenation makes debugging production errors incredibly difficult because it only outputs flat, unstructured text strings. To a server, a flat text log is just a random sequence of characters, meaning you have to manually read through thousands of lines of messy text to find a bug. Integrating Serilog solves this by introducing structured logging. Instead of smashing variables into a plain string, Serilog captures contextual data as distinct properties and outputs them as a clean JSON object.You can run instant database-style searches to filter by specific status codes or error types. Plus, using Serilog's Log.CloseAndFlush() guarantees that if the application suffers a fatal crash during startup, the diagnostic data is fully saved before the process shuts down.

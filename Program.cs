@@ -35,6 +35,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseExceptionHandler();//intercepts unhandled c code exceptions
 // Automatically formats standard error codes (like 400 or 404) into rich Problem Details JSON objects
 app.UseStatusCodePages();
 

@@ -25,6 +25,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             JobNotFoundException => StatusCodes.Status404NotFound,
             DuplicateJobListingException => StatusCodes.Status409Conflict,
+            InvalidJobStatusException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError
         };
 
@@ -32,7 +33,8 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             Status = statusCode,
             Title = exception.GetType().Name,
-            Detail = exception.Message
+            Detail = exception.Message,
+            Instance = httpContext.Request.Path
         };
 
         httpContext.Response.StatusCode = statusCode;

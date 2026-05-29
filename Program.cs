@@ -2,52 +2,68 @@ using Scalar.AspNetCore;
 using CareerHub.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using CareerHub.Api.Middleware;
+using Serilog;
 
+// 1. Configure the LoggerConfiguration at the very top
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-// 1. Configure the global Problem Details pipeline (Assignment Part 4 requirement)
-builder.Services.AddProblemDetails();
-
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
-builder.Services.AddProblemDetails();
-
-// 2. Register Controllers and configure Enums to serialize as Strings instead of numbers
-builder.Services.AddControllers() 
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-    });
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-// Register your single data service instance
-builder.Services.AddSingleton<JobService>();
-
-var app = builder.Build();
-app.UseExceptionHandler();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi(); // Generates the JSON file at /openapi/v1.json
-    
-    // Updated syntax for Scalar 2.0+
-    app.MapScalarApiReference(options =>
+    Log.Information("Starting web application...");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Use Serilog
+    builder.Host.UseSerilog();
+
+    // Configure the global Problem Details pipeline
+    builder.Services.AddProblemDetails();
+    builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+    // Register Controllers and configure Enums to serialize as Strings
+    builder.Services.AddControllers() 
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        });
+
+    builder.Services.AddOpenApi();
+    builder.Services.AddSingleton<JobService>();
+
+    var app = builder.Build();
+
+
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
     {
-        options.OpenApiRoutePattern = "/openapi/v1.json";
-    });
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.OpenApiRoutePattern = "/openapi/v1.json";
+        });
+    }
+
+    // Pipeline ordering: Exception handler goes early to catch downstream errors
+    app.UseExceptionHandler();
+
+    // Request logging goes after exception handling so it accurately logs status codes
+    app.UseSerilogRequestLogging();
+    
+    app.UseStatusCodePages();
+    app.UseHttpsRedirection();
+    app.MapControllers(); 
+
+    app.Run();
 }
-
-app.UseExceptionHandler();//intercepts unhandled c code exceptions
-// Automatically formats standard error codes (like 400 or 404) into rich Problem Details JSON objects
-app.UseStatusCodePages();
-
-app.UseHttpsRedirection();
-
-// 3. MAP CONTROLLERS: This replaces app.MapGet, app.MapPost, etc.
-app.MapControllers(); 
-
-app.Run();
+catch (Exception ex)
+{
+    // This catches any catastrophic failures during application startup
+    Log.Fatal(ex, "Application terminated unexpectedly during startup.");
+}
+finally
+{
+    // Ensures any buffered log statements are written out before the process exits
+    Log.CloseAndFlush();
+}

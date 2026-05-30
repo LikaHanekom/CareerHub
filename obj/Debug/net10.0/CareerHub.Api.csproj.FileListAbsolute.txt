@@ -33,3 +33,13 @@ C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\refint\CareerHub.Api.dll
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\CareerHub.Api.pdb
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\CareerHub.Api.genruntimeconfig.cache
 C:\Users\alika\CareerHub.Api\obj\Debug\net10.0\ref\CareerHub.Api.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Microsoft.Extensions.DependencyModel.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.AspNetCore.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Extensions.Hosting.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Extensions.Logging.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Formatting.Compact.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Settings.Configuration.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Sinks.Console.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Sinks.Debug.dll
+C:\Users\alika\CareerHub.Api\bin\Debug\net10.0\Serilog.Sinks.File.dll

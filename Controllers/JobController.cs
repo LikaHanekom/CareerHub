@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Services;
+using CareerHub.Api.Exceptions;
 
 namespace CareerHub.Api.Controllers;
 
@@ -34,11 +35,7 @@ public class JobsController : ControllerBase
 
         if (job is null)
         {
-            return Problem(
-                detail: $"Job listing with ID {id} was not found.",
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Not Found"
-            );
+            throw new JobNotFoundException(id);
         }
 
         return Ok(MapToResponse(job));
@@ -52,11 +49,7 @@ public class JobsController : ControllerBase
         bool isDuplicate = await _jobService.ExistsAsync(request.Title, request.Company);
         if (isDuplicate)
         {
-            return Problem(
-                detail: $"A job listing for '{request.Title}' at '{request.Company}' already exists.",
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Duplicate Job Listing"
-            );
+            throw new DuplicateJobListingException(request.Company, request.Title);
         }
 
         // Map received request DTO parameters onto our server Domain Model
@@ -85,11 +78,7 @@ public class JobsController : ControllerBase
         var existingJob = await _jobService.GetJobByIdAsync(id);
         if (existingJob == null)
         {
-            return Problem(
-                detail: $"Job listing with ID {id} was not found.",
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Not Found"
-            );
+            throw new JobNotFoundException(id);
         }
 
         var updatedJobData = new JobListing
@@ -112,11 +101,7 @@ public class JobsController : ControllerBase
         var wasDeleted = await _jobService.DeleteJobAsync(id);
         if (!wasDeleted)
         {
-            return Problem(
-                detail: $"Job listing with ID {id} does not exist.",
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Not Found"
-            );
+            throw new JobNotFoundException(id);
         }
 
         return NoContent(); // HTTP 204 No Content for successful deletion

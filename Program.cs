@@ -62,6 +62,20 @@ try
     app.UseAuthentication(); //Checks who user is
     app.UseAuthorization(); //check what the user is allowed to do
     
+    //Cors configuration
+    builder.Services.AddCors(options =>
+    {
+       options.AddPolicy("FrontendPolicy", 
+       policy =>
+       {
+           policy
+                .WithOrigins("http://localhost:3000")//JS will rely on this
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+       });
+    });
+
+
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {

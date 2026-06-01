@@ -3,6 +3,7 @@ using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Services;
 using CareerHub.Api.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CareerHub.Api.Controllers;
 
@@ -42,6 +43,7 @@ public class JobsController : ControllerBase
     }
 
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────
+    [Authorize(Roles = "Employer")]
     [HttpPost]
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
@@ -72,6 +74,7 @@ public class JobsController : ControllerBase
     }
 
     // ── 4. PUT /jobs/{id} (UPDATE) ────────────────────────────────────
+    [Authorize(Roles = "Employer")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<JobResponse>> UpdateJobAsync(int id, [FromBody] UpdateJobRequest request)
     {
@@ -95,6 +98,7 @@ public class JobsController : ControllerBase
     }
 
     // ── 5. DELETE /jobs/{id} (DELETE) ─────────────────────────────────
+    [Authorize(Roles = "Employer")]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteJobAsync(int id)
     {

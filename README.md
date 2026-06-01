@@ -110,3 +110,17 @@ Before, controllers could get really messy, with each method checking if(job == 
 
 **Structured Logging:**
 Relying on standard Console.WriteLine string concatenation makes debugging production errors incredibly difficult because it only outputs flat, unstructured text strings. To a server, a flat text log is just a random sequence of characters, meaning you have to manually read through thousands of lines of messy text to find a bug. Integrating Serilog solves this by introducing structured logging. Instead of smashing variables into a plain string, Serilog captures contextual data as distinct properties and outputs them as a clean JSON object.You can run instant database-style searches to filter by specific status codes or error types. Plus, using Serilog's Log.CloseAndFlush() guarantees that if the application suffers a fatal crash during startup, the diagnostic data is fully saved before the process shuts down.
+
+## Assignment 1.4 :
+**1. Stateless Auth:**
+JWT-based is lmost like having a digital passport, everytime the user does something the server checks the signature and if your signature is valid it lets you in. Session-based on the other hand is when the server keeps a file about the user in its memory and gives the user a ticket number. Everytime the user does something the server stops and looks at the file in memory. 
+
+For scaling, problems can arrise in sessions. For example if the API gets duplicated accross different servers. If you log into server 1, but then your next click takes you to server 2, you will immediately be logged out. JWT, has this covered, becasue all three servers would share the secret key. 
+
+**2. 401 VS 403:**
+401 Unauthorized is when a user either has no token or the token they have is invalid. This happens in UseAuthentication() in the middleware pipeline. On the other hand, 403 Forbidden is given when a users token is checked and they don't have permission. This happens in the UseAuthorization() in the middleware pipeline.
+
+**3. Token Storage:**
+LocalStorage has not built-in security barriers against Javascript and anything stored there are public to any script running on the site. A hacker could easily run a javaScript Code and steal a users JWT.
+
+Alternatively HttpOnly Cookies needs to be used for safe storage. Browser JavaScript is physically blokced from touching or reading the cookie. Your frontend never handles the token manually, making it very secure.

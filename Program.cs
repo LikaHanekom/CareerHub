@@ -3,6 +3,10 @@ using CareerHub.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using CareerHub.Api.Middleware;
 using Serilog;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.Extensions.Options;
 
 // 1. Configure the LoggerConfiguration at the very top
 Log.Logger = new LoggerConfiguration()
@@ -32,9 +36,32 @@ try
     builder.Services.AddOpenApi();
     builder.Services.AddSingleton<JobService>();
 
+    //Builder.config, tool to read configuration settings
+    var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.
+    var key = Encoding.UTF8.GetBytes(jwtKey!);// translation
+
+    builder.Services.AddAuthentication(
+        JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key)
+            };
+        });
+
+
+    builder.Services.AddAuthorization();
+
     var app = builder.Build();
 
-
+    app.UseAuthentication(); //Checks who user is
+    app.UseAuthorization(); //check what the user is allowed to do
+    
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {

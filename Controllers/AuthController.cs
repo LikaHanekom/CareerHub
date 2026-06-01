@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 
+
 namespace CareerHub.Api.Controllers;
 
 [ApiController]//tells .NET this is a Web API controller. 

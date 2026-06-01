@@ -34,6 +34,7 @@ try
         });
 
     builder.Services.AddOpenApi();
+    //Scalar configuration
     builder.Services.AddSingleton<JobService>();
 
     //Builder.config, tool to read configuration settings
@@ -57,11 +58,6 @@ try
 
     builder.Services.AddAuthorization();
 
-    var app = builder.Build();
-
-    app.UseAuthentication(); //Checks who user is
-    app.UseAuthorization(); //check what the user is allowed to do
-    
     //Cors configuration
     builder.Services.AddCors(options =>
     {
@@ -76,6 +72,9 @@ try
     });
 
 
+    var app = builder.Build();
+  
+
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {
@@ -86,11 +85,18 @@ try
         });
     }
 
+    //Order matters
+    // Request logging goes after exception handling so it accurately logs status codes
+    app.UseSerilogRequestLogging();
+
+    app.UseCors("FrontendPolicy");
+
     // Pipeline ordering: Exception handler goes early to catch downstream errors
     app.UseExceptionHandler();
 
-    // Request logging goes after exception handling so it accurately logs status codes
-    app.UseSerilogRequestLogging();
+    app.UseAuthentication();//Checks who user is
+
+    app.UseAuthorization();//check what the user is allowed to do
     
     app.UseStatusCodePages();
     app.UseHttpsRedirection();

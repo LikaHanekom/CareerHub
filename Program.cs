@@ -34,6 +34,21 @@ try
         });
 
     builder.Services.AddOpenApi();
+        /*options =>
+    {
+        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        {
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes.Add("Bearer", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "Paste your JWT token here"
+            });
+            return Task.CompletedTask;
+        });
+    });*/
     //Scalar configuration
     builder.Services.AddSingleton<JobService>();
 

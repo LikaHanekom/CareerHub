@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\alika\\CareerHub.Api\\CareerHub.Api.csproj": {}
+    "C:\\Users\\TrainingCenter 4\\CareerHub\\CareerHub.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\alika\\CareerHub.Api\\CareerHub.Api.csproj": {
+    "C:\\Users\\TrainingCenter 4\\CareerHub\\CareerHub.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\alika\\CareerHub.Api\\CareerHub.Api.csproj",
+        "projectUniqueName": "C:\\Users\\TrainingCenter 4\\CareerHub\\CareerHub.Api.csproj",
         "projectName": "CareerHub.Api",
-        "projectPath": "C:\\Users\\alika\\CareerHub.Api\\CareerHub.Api.csproj",
-        "packagesPath": "C:\\Users\\alika\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\alika\\CareerHub.Api\\obj\\",
+        "projectPath": "C:\\Users\\TrainingCenter 4\\CareerHub\\CareerHub.Api.csproj",
+        "packagesPath": "C:\\Users\\TrainingCenter 4\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\TrainingCenter 4\\CareerHub\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\alika\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\TrainingCenter 4\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"

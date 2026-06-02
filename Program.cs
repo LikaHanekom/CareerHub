@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
+using CareerHub.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 // 1. Configure the LoggerConfiguration at the very top
 Log.Logger = new LoggerConfiguration()
@@ -73,6 +75,12 @@ try
        });
     });
 
+
+    //register EF core
+    builder.Services.AddDbContext<CareerHubDbContext>(options =>
+    {
+        options.UseNpgsql("Host=localhost;Port=5433;Database=CareerHub;Username=postgres;Password=Password123");
+    });
     var app = builder.Build();
 
     // Configure the HTTP request pipeline.

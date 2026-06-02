@@ -15,7 +15,7 @@ namespace CareerHub.Api.Migrations
                 name: "job_listings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Title = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
                     Company = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),

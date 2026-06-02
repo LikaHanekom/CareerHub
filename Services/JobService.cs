@@ -4,98 +4,75 @@ using System.Linq;
 using System.Threading.Tasks;
 using CareerHub.Api.Models; // Tells file to look inside the Models folder
 using CareerHub.Api.Enums;
+using CareerHub.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CareerHub.Api.Services;//file lives in services layer of project
 
-public class JobService
+public class JobService(CareerHubDbContext context)
 {
-    private static readonly List<JobListing> _jobs = new()
-    {
-        new JobListing 
-        {
-            Id = 1, 
-            Title = "Full Stack Developer", 
-            Company = "TechCorp", 
-            Location = "Remote", 
-            Description = "Build beautiful React and .NET apps.", 
-            Type = JobType.FullTime, //using enum value
-            PostedAt = DateTime.UtcNow.AddDays(-5), // Seeded historical date
-            IsActive = true
-        },
-        new JobListing 
-        { 
-            Id = 2, 
-            Title = "Backend Engineer", 
-            Company = "DataSystems", 
-            Location = "Johannesburg", 
-            Description = "Optimize heavy-duty API engines.", 
-            Type = JobType.Contract,
-            PostedAt = DateTime.UtcNow.AddDays(-2),
-            IsActive = true 
-        },
-        new JobListing 
-        { 
-            Id = 3, 
-            Title = "Junior Web Developer", 
-            Company = "CreativeAgency", 
-            Location = "Cape Town", 
-            Description = "Maintain and style frontend components.", 
-            Type = JobType.Internship, 
-            PostedAt = DateTime.UtcNow,
-            IsActive = true 
-        } 
-    };
 
-    public async Task<IEnumerable<JobListing>> GetAllJobsAsync() //async: allows to run withou blocking servers execution threads
+    private readonly CareerHubDbContext _context = context;
+
+    //Get all the jobs
+    public async Task<IEnumerable<JobListing>> GetAllJobsAsync()
     {
-        return await Task.FromResult(_jobs);
+        return await _context.JobListings.ToListAsync();
     }
 
-    public async Task<JobListing?> GetJobByIdAsync(int id)
+    //Get the job by ID
+    public async Task<JobListing?> GetJobByIdAsync(Guid id)
     {
-        var job = _jobs.FirstOrDefault(j => j.Id == id); //searches through jobs list to find id that mathes id passed into method
-        return await Task.FromResult(job);
+        return await _context.JobListings.FindAsync(id);
     }
 
+    //Check for duplications
     public async Task<bool> ExistsAsync(string title, string company)
     {
-        // Part 3 duplicate check: case-insensitive check on Title and Company
-        var exists = _jobs.Any(j => j.Title.Equals(title, StringComparison.OrdinalIgnoreCase) && 
-                                j.Company.Equals(company, StringComparison.OrdinalIgnoreCase));
-        return await Task.FromResult(exists);
+        // Case-insensitive database check using EF.Functions.ILike or standard Lower() conversion
+        return await _context.JobListings.AnyAsync(j => 
+            j.Title.ToLower() == title.ToLower() && 
+            j.Company.ToLower() == company.ToLower());
     }
 
+    //Create a Job
     public async Task<JobListing> CreateJobAsync(JobListing job)
     {
-        // Generate a new sequential integer ID
-        job.Id = _jobs.Any() ? _jobs.Max(j => j.Id) + 1 : 1;
-        _jobs.Add(job);
-        return await Task.FromResult(job);
+        // Generate a new client-side Guid since ValueGeneratedNever() is used
+        job.Id = Guid.NewGuid();
+        job.PostedAt = DateTime.UtcNow;
+        
+        _context.JobListings.Add(job);
+        await _context.SaveChangesAsync();
+        
+        return job;
     }
 
-    public async Task<JobListing?> UpdateJobAsync(int id, JobListing updatedJobData)
+    //Update Jobs
+    public async Task<JobListing?> UpdateJobAsync(Guid id, JobListing updatedJobData)
     {
-        var existingJob = _jobs.FirstOrDefault(j => j.Id == id);
+        var existingJob = await _context.JobListings.FindAsync(id);
         if (existingJob == null) return null;
 
-        // Fully replace ONLY the editable fields sent by the client DTO
+        // Map editable fields over
         existingJob.Title = updatedJobData.Title;
         existingJob.Description = updatedJobData.Description;
         existingJob.Company = updatedJobData.Company;
         existingJob.Location = updatedJobData.Location;
-        existingJob.Type = updatedJobData.Type;
 
-        // CRITICAL REQUIREMENT: PostedAt and IsActive values from the original record are strictly preserved here!
-
-        return await Task.FromResult(existingJob);
+        await _context.SaveChangesAsync();
+        return existingJob;
     }
 
-    public async Task<bool> DeleteJobAsync(int id)
+    //Delete Job
+    public async Task<bool> DeleteJobAsync(Guid id)
     {
-        var job = _jobs.FirstOrDefault(j => j.Id == id);
-        if (job == null) return false; // ID doesn't exist
+        var job = await _context.JobListings.FindAsync(id);
+        if (job == null) return false;
 
-        _jobs.Remove(job);
-        return await Task.FromResult(true);
+        _context.JobListings.Remove(job);
+        await _context.SaveChangesAsync();
+        
+        return true;
     }
 }

@@ -24,8 +24,8 @@ namespace CareerHub.Api.Migrations
 
             modelBuilder.Entity("CareerHub.Api.Models.JobListing", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Company")
                         .IsRequired()

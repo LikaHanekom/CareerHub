@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    [Migration("20260602141327_InitialCreate")]
+    [Migration("20260602163112_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -27,8 +27,8 @@ namespace CareerHub.Api.Migrations
 
             modelBuilder.Entity("CareerHub.Api.Models.JobListing", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Company")
                         .IsRequired()

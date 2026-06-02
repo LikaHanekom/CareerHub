@@ -40,7 +40,7 @@ try
 
     builder.Services.AddScoped<IAuthService, AuthService>();
     //Scalar configuration
-    builder.Services.AddSingleton<JobService>();
+    builder.Services.AddScoped<JobService>();
 
     //Builder.config, tool to read configuration settings
     var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.

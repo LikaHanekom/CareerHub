@@ -1,9 +1,8 @@
+using System;
+
 namespace CareerHub.Api.Exceptions;
 
 public class JobNotFoundException : Exception
 {
-    public JobNotFoundException(int id)
-        : base($"The job listing with ID {id} was not found.")
-    {
-    }
+    public JobNotFoundException(Guid id) : base($"Job with ID {id} not found.") { }
 }

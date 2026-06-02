@@ -33,7 +33,10 @@ try
             options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
 
+    // Scalar / OpenAPI configuration
     builder.Services.AddOpenApi();
+
+    builder.Services.AddScoped<IAuthService, AuthService>();
     //Scalar configuration
     builder.Services.AddSingleton<JobService>();
 
@@ -55,7 +58,6 @@ try
             };
         });
 
-
     builder.Services.AddAuthorization();
 
     //Cors configuration
@@ -71,9 +73,7 @@ try
        });
     });
 
-
     var app = builder.Build();
-  
 
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())

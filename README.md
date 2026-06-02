@@ -124,3 +124,14 @@ For scaling, problems can arrise in sessions. For example if the API gets duplic
 LocalStorage has not built-in security barriers against Javascript and anything stored there are public to any script running on the site. A hacker could easily run a javaScript Code and steal a users JWT.
 
 Alternatively HttpOnly Cookies needs to be used for safe storage. Browser JavaScript is physically blokced from touching or reading the cookie. Your frontend never handles the token manually, making it very secure.
+
+## Assignment 2.1 :
+**1. Change Tracker:**
+ The change tracker sits between the database and code. When a user pulls data out of the database the change tracker watches it and should the user make changes to the data it tracks it in it's memory without informing the database. Calling the SaveChangesAsync() at the end ensures that all network requests are send to the database once. All edits are bundled into one efficient trip to the database. This helps improve performance.
+
+ **2. Mitigations:**
+ Mitigations is like git for your database, keeping version control for your database schema. A change is written down in a migration file. If a userName property is added too your code it also needs to be added to your database. Should someone pull code without the mitigation, the C# queries will essentially be writing to tables and colums that dont exist, which will cause SQL exceptions.
+
+ **3. Connection String Security:**
+ The connection string is the master key to the database. appsettings.json is the global faalback file whereas the asppsettings.Development.json is strictly for your local machine. By placing local connection strings in your development file, will ensure that production credentials arent accidentally leaked. 
+ In production, no production connection strings should be hardcoded. If it is leakekd this could compromise the integrity of your data and compromises the database. Secure alternatives such as Environment Variebales should rather be used on your hosting platform. This helps to keep the key out of any code bases.

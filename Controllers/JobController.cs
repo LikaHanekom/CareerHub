@@ -1,40 +1,36 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore; 
 using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
-using CareerHub.Api.Services;
 using CareerHub.Api.Exceptions;
 using Microsoft.AspNetCore.Authorization;
+using CareerHub.Api.Data;
 
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
 [Route("jobs")] // This makes every endpoint in this file start with /jobs
-public class JobsController : ControllerBase
+public class JobController(CareerHubDbContext dbContext): ControllerBase
 {
-    private readonly JobService _jobService;
+    private readonly CareerHubDbContext _dbContext = dbContext;
 
-    // ASP.NET Core automatically injects your registered JobService here
-    public JobsController(JobService jobService)
-    {
-        _jobService = jobService;
-    }
 
     // ── 1. GET ALL JOBS (GET /jobs) ──────────────────────────────────
     [HttpGet]
     public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
     {
-        var jobs = await _jobService.GetAllJobsAsync();
+        var jobs = await _dbContext.JobListings.ToListAsync();
         var response = jobs.Select(MapToResponse);
         return Ok(response);
     }
 
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<JobResponse>> GetJobByIdAsync(int id)
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)
     {
-        var job = await _jobService.GetJobByIdAsync(id);
+        var job = await _dbContext.JobListings.FindAsync(id);
 
-        if (job is null)
+        if (job == null)
         {
             throw new JobNotFoundException(id);
         }
@@ -45,70 +41,80 @@ public class JobsController : ControllerBase
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────
     [Authorize(Roles = "Employer")]
     [HttpPost]
+    
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
-        // Duplicate check (case-insensitive) to prevent double-submits
-        bool isDuplicate = await _jobService.ExistsAsync(request.Title, request.Company);
-        if (isDuplicate)
+        //  Duplicate Check using DbContext
+        var exists = await _dbContext.JobListings
+            .AnyAsync(j => j.Title == request.Title && j.Company == request.Company);
+
+        if (exists)
         {
-            throw new DuplicateJobListingException(request.Company, request.Title);
+            throw new DuplicateJobListingException(request.Title, request.Company);
         }
 
-        // Map received request DTO parameters onto our server Domain Model
+        // Create entity directly with DbContext
         var newJob = new JobListing
         {
+            Id = Guid.NewGuid(),
             Title = request.Title,
             Company = request.Company,
             Location = request.Location,
             Description = request.Description,
             Type = request.Type,
-            PostedAt = DateTime.UtcNow, // Server-owned timestamp
-            IsActive = true             // Server-owned default state
+            PostedAt = DateTime.UtcNow, 
+            IsActive = true             
         };
 
-        var createdJob = await _jobService.CreateJobAsync(newJob);
-        var response = MapToResponse(createdJob);
+        _dbContext.JobListings.Add(newJob);
+        await _dbContext.SaveChangesAsync();
 
-        // Success: 201 Created with a Location header pointing to GET /jobs/{id}
-        return CreatedAtAction(nameof(GetJobByIdAsync), new { id = response.Id }, response);
+        var response = MapToResponse(newJob);
+
+        return StatusCode(201, MapToResponse(newJob));
     }
 
     // ── 4. PUT /jobs/{id} (UPDATE) ────────────────────────────────────
     [Authorize(Roles = "Employer")]
-    [HttpPut("{id:int}")]
-    public async Task<ActionResult<JobResponse>> UpdateJobAsync(int id, [FromBody] UpdateJobRequest request)
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<JobResponse>> UpdateJobAsync(Guid id, [FromBody] UpdateJobRequest request)
     {
-        var existingJob = await _jobService.GetJobByIdAsync(id);
-        if (existingJob == null)
+        //  Find, throw if null, update properties, and save
+        var job = await _dbContext.JobListings.FindAsync(id);
+
+        if (job == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        var updatedJobData = new JobListing
-        {
-            Title = request.Title,
-            Company = request.Company,
-            Location = request.Location,
-            Description = request.Description,
-            Type = request.Type
-        };
+        job.Title = request.Title;
+        job.Company = request.Company;
+        job.Location = request.Location;
+        job.Description = request.Description;
+        job.Type = request.Type;
 
-        var result = await _jobService.UpdateJobAsync(id, updatedJobData);
-        return Ok(MapToResponse(result!));
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(MapToResponse(job));
     }
 
     // ── 5. DELETE /jobs/{id} (DELETE) ─────────────────────────────────
     [Authorize(Roles = "Employer")]
-    [HttpDelete("{id:int}")]
-    public async Task<ActionResult> DeleteJobAsync(int id)
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> DeleteJobAsync(Guid id)
     {
-        var wasDeleted = await _jobService.DeleteJobAsync(id);
-        if (!wasDeleted)
+        // STEP 21: Find, throw if null, remove, save, and return NoContent
+        var job = await _dbContext.JobListings.FindAsync(id);
+
+        if (job == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        return NoContent(); // HTTP 204 No Content for successful deletion
+        _dbContext.JobListings.Remove(job);
+        await _dbContext.SaveChangesAsync();
+
+        return NoContent(); 
     }
 
     // Centralized mapping helper to map Domain Models safely to public Response Contracts

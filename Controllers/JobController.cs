@@ -45,20 +45,19 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
         //  Duplicate Check using DbContext
-        var exists = await _dbContext.JobListings
-            .AnyAsync(j => j.Title == request.Title && j.Company == request.Company);
-
+        var exists = await _dbContext.JobListings.AnyAsync(j => j.Title == request.Title &&j.CompanyId == request.CompanyId);
         if (exists)
         {
-            throw new DuplicateJobListingException(request.Company,request.Title);
+           throw new DuplicateJobListingException(request.CompanyId.ToString(), request.Title);
         }
+
 
         // Create entity directly with DbContext
         var newJob = new JobListing
         {
             Id = Guid.NewGuid(),
             Title = request.Title,
-            Company = request.Company,
+            CompanyId = request.CompanyId,
             Location = request.Location,
             Description = request.Description,
             Type = request.Type,
@@ -88,7 +87,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
         }
 
         job.Title = request.Title;
-        job.Company = request.Company;
+        job.CompanyId = request.CompanyId;
         job.Location = request.Location;
         job.Description = request.Description;
         job.Type = request.Type;
@@ -124,7 +123,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
         {
             Id = job.Id,
             Title = job.Title,
-            Company = job.Company,
+            Company = job.Company.Name,
             Location = job.Location,
             Description = job.Description,
             Type = job.Type,

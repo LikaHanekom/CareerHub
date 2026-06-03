@@ -18,29 +18,26 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<JobListing>(entity =>
+{
+        entity.ToTable("job_listings");
+
+        entity.HasKey(j => j.Id);
+
+        entity.Property(j => j.Id).ValueGeneratedNever();
+
+        entity.Property(j => j.Title).IsRequired().HasMaxLength(100);
+
+        entity.Property(j => j.Description).IsRequired().HasMaxLength(1000);
+
+        entity.Property(j => j.Location).IsRequired().HasMaxLength(100);
+
+        entity.HasIndex(j => new
         {
-            entity.ToTable("job_listings");
-
-            entity.HasKey(j => j.Id);
-
-            entity.Property(j => j.Id).ValueGeneratedNever();
-
-            entity.Property(j => j.Title).IsRequired().HasMaxLength(100);
-
-            entity.Property(j => j.Company).IsRequired().HasMaxLength(100);
-
-            entity.Property(j => j.Description).IsRequired().HasMaxLength(1000);
-
-            entity.Property(j => j.Location).IsRequired().HasMaxLength(100);
-
-            entity.HasIndex(j => new
-            {
-                j.Title,
-                j.Company
-            })
-            .IsUnique();
-        });
-        
+            j.Title,
+            j.CompanyId
+        })
+        .IsUnique();
+    });
         modelBuilder.Entity<Company>(entity =>
         {
             entity.ToTable("companies");

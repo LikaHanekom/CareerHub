@@ -19,8 +19,51 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
     {
-        var jobs = await _dbContext.JobListings.ToListAsync();//gets *FROM job_listings
-        var response = jobs.Select(MapToResponse);
+
+        /* N+1 - Eager Loading
+        var jobs = await _dbContext.JobListings
+            .Include(j => j.Company)
+            .ToListAsync();
+
+        
+        var response = jobs.Select(MapToResponse).ToList();
+        return Ok(response);
+        var jobs = await _dbContext.JobListings.ToListAsync(); // Query 1: Gets all 5 jobs
+
+        var response = new List<JobResponse>();
+        foreach (var j in jobs)
+        {
+            // Queries 2 to 6: Hits the database separately for EVERY single job to find the company name
+            var companyName = _dbContext.Companies.Find(j.CompanyId)?.Name ?? "";
+
+            response.Add(new JobResponse {
+                Id = j.Id,
+                Title = j.Title,
+                Location = j.Location,
+                Company = companyName
+            });
+        }
+        return Ok(response);
+        */
+        
+        var response = await _dbContext.JobListings
+            .AsNoTracking() //no change tracker, less memory, fater queries
+            .Select(j => new JobResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Location = j.Location,
+                Description = j.Description,
+                Type = j.Type,
+                PostedAt = j.PostedAt,
+                IsActive = j.IsActive,
+                Company = j.Company.Name, // Maps the string field from navigation safely
+                
+                // Count is calculated directly inside the database via SQL COUNT()
+                ApplicationCount = j.Applications.Count() 
+            })
+            .ToListAsync();
+
         return Ok(response);
     }
 
@@ -28,14 +71,35 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)
     {
-        var job = await _dbContext.JobListings.FindAsync(id);
+        var jobDetail = await _dbContext.JobListings
+            .AsNoTracking()
+            .Where(j => j.Id == id)
+            .Select(j => new JobDetailResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Description = j.Description,
+                Location = j.Location,
+                Type = j.Type,
+                PostedAt = j.PostedAt,
+                IsActive = j.IsActive,
+                CompanyName = j.Company.Name,
+                
+                // Pulls only the name strings out of the join table
+                Applications = j.Applications.Select(ap => new ApplicationDetailResponse
+                {
+                    FullName = ap.Applicant.FullName,
+                    AppliedAt = ap.SubmittedAt
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
 
-        if (job == null)
+        if (jobDetail == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        return Ok(MapToResponse(job));
+        return Ok(jobDetail);
     }
 
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────
@@ -45,20 +109,19 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
         //  Duplicate Check using DbContext
-        var exists = await _dbContext.JobListings
-            .AnyAsync(j => j.Title == request.Title && j.Company == request.Company);
-
+        var exists = await _dbContext.JobListings.AnyAsync(j => j.Title == request.Title &&j.CompanyId == request.CompanyId);
         if (exists)
         {
-            throw new DuplicateJobListingException(request.Company,request.Title);
+           throw new DuplicateJobListingException(request.CompanyId.ToString(), request.Title);
         }
+
 
         // Create entity directly with DbContext
         var newJob = new JobListing
         {
             Id = Guid.NewGuid(),
             Title = request.Title,
-            Company = request.Company,
+            CompanyId = request.CompanyId,
             Location = request.Location,
             Description = request.Description,
             Type = request.Type,
@@ -88,7 +151,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
         }
 
         job.Title = request.Title;
-        job.Company = request.Company;
+        job.CompanyId = request.CompanyId;
         job.Location = request.Location;
         job.Description = request.Description;
         job.Type = request.Type;
@@ -124,7 +187,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
         {
             Id = job.Id,
             Title = job.Title,
-            Company = job.Company,
+            Company = job.Company.Name,
             Location = job.Location,
             Description = job.Description,
             Type = job.Type,

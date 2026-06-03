@@ -3,6 +3,7 @@ using System;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    partial class CareerHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603163859_AddRelationships")]
+    partial class AddRelationships
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -44,20 +47,6 @@ namespace CareerHub.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("applicants", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("a1111111-1111-1111-1111-111111111111"),
-                            Email = "applicantA@test.com",
-                            FullName = "Applicant A"
-                        },
-                        new
-                        {
-                            Id = new Guid("b2222222-2222-2222-2222-222222222222"),
-                            Email = "applicantB@test.com",
-                            FullName = "Applicant B"
-                        });
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.Application", b =>
@@ -100,38 +89,6 @@ namespace CareerHub.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("companies", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Name = "TechCorp",
-                            Website = "techcorp.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            Name = "FinanceFlow",
-                            Website = "financeflow.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            Name = "HealthNet",
-                            Website = "healthnet.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            Name = "EduBuild",
-                            Website = "edubuild.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
-                            Name = "LogiRoute",
-                            Website = "logiroute.com"
-                        });
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.JobListing", b =>
@@ -174,63 +131,6 @@ namespace CareerHub.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("job_listings", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("91111111-1111-1111-1111-111111111111"),
-                            CompanyId = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Description = "C# Engineer needed",
-                            IsActive = true,
-                            Location = "Remote",
-                            PostedAt = new DateTime(2026, 6, 2, 22, 0, 0, 0, DateTimeKind.Utc),
-                            Title = "Backend Developer",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = new Guid("92222222-2222-2222-2222-222222222222"),
-                            CompanyId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            Description = "SQL expert needed",
-                            IsActive = true,
-                            Location = "Cape Town",
-                            PostedAt = new DateTime(2026, 6, 2, 22, 0, 0, 0, DateTimeKind.Utc),
-                            Title = "Data Analyst",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = new Guid("93333333-3333-3333-3333-333333333333"),
-                            CompanyId = new Guid("33333333-3333-3333-3333-333333333333"),
-                            Description = "Docker expert",
-                            IsActive = true,
-                            Location = "Remote",
-                            PostedAt = new DateTime(2026, 6, 2, 22, 0, 0, 0, DateTimeKind.Utc),
-                            Title = "DevOps Specialist",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = new Guid("94444444-4444-4444-4444-444444444444"),
-                            CompanyId = new Guid("44444444-4444-4444-4444-444444444444"),
-                            Description = "React components",
-                            IsActive = true,
-                            Location = "Johannesburg",
-                            PostedAt = new DateTime(2026, 6, 2, 22, 0, 0, 0, DateTimeKind.Utc),
-                            Title = "Frontend Developer",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = new Guid("95555555-5555-5555-5555-555555555555"),
-                            CompanyId = new Guid("55555555-5555-5555-5555-555555555555"),
-                            Description = "AWS infra design",
-                            IsActive = true,
-                            Location = "Remote",
-                            PostedAt = new DateTime(2026, 6, 2, 22, 0, 0, 0, DateTimeKind.Utc),
-                            Title = "Cloud Architect",
-                            Type = 0
-                        });
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.Application", b =>

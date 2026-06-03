@@ -9,9 +9,7 @@ public class CreateJobRequest : IValidatableObject
     [StringLength(120, MinimumLength = 5, ErrorMessage = "Title must be between 5 and 120 characters.")]
     public string Title { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Company is required.")]
-    [StringLength(80, MinimumLength = 2, ErrorMessage = "Company must be between 2 and 80 characters.")]
-    public string Company { get; set; } = string.Empty;
+    public Guid CompanyId { get; set; }
 
     [Required(ErrorMessage = "Location is required.")]
     public string Location { get; set; } = string.Empty;
@@ -33,6 +31,16 @@ public class CreateJobRequest : IValidatableObject
     // Custom cross-field validation rule executed automatically by ASP.NET Core
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        //Validate that CompanyId is not an empty
+        if (CompanyId == Guid.Empty)
+        {
+            yield return new ValidationResult(
+                "A valid Company ID is required.",
+                new[] { nameof(CompanyId) }
+            );
+        }
+
+        // 2. Validate Salary ranges
         if (SalaryMin.HasValue && SalaryMax.HasValue && SalaryMax.Value <= SalaryMin.Value)
         {
             yield return new ValidationResult(

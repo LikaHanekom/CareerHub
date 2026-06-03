@@ -27,17 +27,17 @@ public class JobService(CareerHubDbContext context)
     }
 
     //Check for duplications
-    public async Task<bool> ExistsAsync(string title, string company)
+    public async Task<bool> ExistsAsync(string title, Guid companyId)
     {
-        // Case-insensitive database check using EF.Functions.ILike or standard Lower() conversion
         return await _context.JobListings.AnyAsync(j => 
-            j.Title.ToLower() == title.ToLower() && 
-            j.Company.ToLower() == company.ToLower());
+            EF.Functions.ILike(j.Title, title) && 
+            j.CompanyId == companyId);
     }
 
     //Create a Job
     public async Task<JobListing> CreateJobAsync(JobListing job)
     {
+        
         // Generate a new client-side Guid since ValueGeneratedNever() is used
         job.Id = Guid.NewGuid();
         job.PostedAt = DateTime.UtcNow;
@@ -57,8 +57,12 @@ public class JobService(CareerHubDbContext context)
         // Map editable fields over
         existingJob.Title = updatedJobData.Title;
         existingJob.Description = updatedJobData.Description;
-        existingJob.Company = updatedJobData.Company;
         existingJob.Location = updatedJobData.Location;
+        existingJob.Type = updatedJobData.Type;
+        existingJob.IsActive = updatedJobData.IsActive;
+        
+        // Map the foreign key ID 
+        existingJob.CompanyId = updatedJobData.CompanyId;
 
         await _context.SaveChangesAsync();
         return existingJob;

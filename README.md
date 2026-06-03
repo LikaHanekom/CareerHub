@@ -135,3 +135,34 @@ Alternatively HttpOnly Cookies needs to be used for safe storage. Browser JavaSc
  **3. Connection String Security:**
  The connection string is the master key to the database. appsettings.json is the global faalback file whereas the asppsettings.Development.json is strictly for your local machine. By placing local connection strings in your development file, will ensure that production credentials arent accidentally leaked. 
  In production, no production connection strings should be hardcoded. If it is leakekd this could compromise the integrity of your data and compromises the database. Secure alternatives such as Environment Variebales should rather be used on your hosting platform. This helps to keep the key out of any code bases.
+
+ ## Assignment 2.2:
+**Question 1:**
+Company - Joblistings is a one-many relationship
+
+Company can have many joblistings, but each job listing can only belong to one company.
+
+Joblistings - Applications is a one-many relationship
+One joblisting can have manu applications, but a single application can only have one job listing.
+
+Applicant - Applications  is a one-many relationship
+An applicant can make many applications, but one application can only have one applicant.
+
+**Question 2**
+Application needs to contain business logic, such as staus and submitted_at, because an Application needs more additional information the table should rather be modeled as a full entity and not a hidden join table.
+
+**Question 3**
+While Joblistings exist, a company cannot be deleted. The company is the one making the joblistings. Should a company be deleted the joblistings should be removed alongside it. A joblisting without a company does not have a purpose. No company will be infored should someone apply. The joblisting will have no purpose.
+
+**Relationship Design Decisions**
+Company - Joblistings I implemented DeleteBehavior.Restrict between the Company and Joblistings relationship. This ensures that a Company cannot be deleted if it still has active associated joblistings connected to it. This ensures that there will be no orphan Job Listings, forcing the system to delete Joblistings before a company can be removed. 
+
+**The N+1 Problem**
+Before implementing the eager loading the terminal output showed a single SELECT to fetch the list of job listings. Followed by N subsequent Select queries to fetch the company name for each record. After implementing the projection the Single SELECT query utilized an Inner join to retrieve both the Job and Company data in one trip.
+
+This N+ 1 problem can deceive developers as they perform good on small datasets, but in a production environment will result in increased database loading, high latency and can ever crash the service. 
+
+**Read vs Write**
+With change tracking, EF core is tracking each object that is retrieved and maintains a single snapshot of the entity, which in turn allows the context to automatically detect changes. On the other hand without change tracking EF core does not maintain a snapshot, which reduces memory usage and CPU overhead. This happens due to the context not needing to evaluate the snapshots with previous ones. 
+
+If you treat a photo (NoTracking) like a live document (Tracking), you'll make changes that never actually get saved to the database, and the system won't warn you.

@@ -20,7 +20,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
     {
 
-        // N+1 - Eager Loading
+        /* N+1 - Eager Loading
         var jobs = await _dbContext.JobListings
             .Include(j => j.Company)
             .ToListAsync();
@@ -28,8 +28,8 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
         
         var response = jobs.Select(MapToResponse).ToList();
 
-        return Ok(response);
-        /*var response = await _dbContext.JobListings
+        return Ok(response);*/
+        var response = await _dbContext.JobListings
             .AsNoTracking()
             .Select(j => new JobResponse
             {
@@ -47,7 +47,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
             })
             .ToListAsync();
 
-        return Ok(response);*/
+        return Ok(response);
     }
 
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────

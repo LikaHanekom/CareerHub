@@ -12,14 +12,14 @@ namespace CareerHub.Api.Controllers;
 [Route("jobs")] // This makes every endpoint in this file start with /jobs
 public class JobController(CareerHubDbContext dbContext): ControllerBase
 {
-    private readonly CareerHubDbContext _dbContext = dbContext;
+    private readonly CareerHubDbContext _dbContext = dbContext;//means Controller-DbContext-PostgrSQL
 
 
     // ── 1. GET ALL JOBS (GET /jobs) ──────────────────────────────────
     [HttpGet]
     public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
     {
-        var jobs = await _dbContext.JobListings.ToListAsync();
+        var jobs = await _dbContext.JobListings.ToListAsync();//gets *FROM job_listings
         var response = jobs.Select(MapToResponse);
         return Ok(response);
     }
@@ -50,7 +50,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
 
         if (exists)
         {
-            throw new DuplicateJobListingException(request.Title, request.Company);
+            throw new DuplicateJobListingException(request.Company,request.Title);
         }
 
         // Create entity directly with DbContext
@@ -66,8 +66,8 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
             IsActive = true             
         };
 
-        _dbContext.JobListings.Add(newJob);
-        await _dbContext.SaveChangesAsync();
+        _dbContext.JobListings.Add(newJob);//only tells EF track this
+        await _dbContext.SaveChangesAsync();//database write
 
         var response = MapToResponse(newJob);
 
@@ -103,7 +103,7 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult> DeleteJobAsync(Guid id)
     {
-        // STEP 21: Find, throw if null, remove, save, and return NoContent
+        // Find, throw if null, remove, save, and return NoContent
         var job = await _dbContext.JobListings.FindAsync(id);
 
         if (job == null)
@@ -111,8 +111,8 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
             throw new JobNotFoundException(id);
         }
 
-        _dbContext.JobListings.Remove(job);
-        await _dbContext.SaveChangesAsync();
+        _dbContext.JobListings.Remove(job);//mark for detetion
+        await _dbContext.SaveChangesAsync();//delete
 
         return NoContent(); 
     }

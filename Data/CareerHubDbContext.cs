@@ -8,7 +8,7 @@ namespace CareerHub.Api.Data;
 
 public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): DbContext(options)
 {
-    public DbSet<JobListing> JobListings => Set<JobListing>();
+    public DbSet<JobListing> JobListings => Set<JobListing>();//owns database connection and access to tables through DB<Set>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

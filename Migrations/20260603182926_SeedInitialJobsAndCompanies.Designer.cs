@@ -3,6 +3,7 @@ using System;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    partial class CareerHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603182926_SeedInitialJobsAndCompanies")]
+    partial class SeedInitialJobsAndCompanies
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -44,20 +47,6 @@ namespace CareerHub.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("applicants", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("a1111111-1111-1111-1111-111111111111"),
-                            Email = "applicantA@test.com",
-                            FullName = "Applicant A"
-                        },
-                        new
-                        {
-                            Id = new Guid("b2222222-2222-2222-2222-222222222222"),
-                            Email = "applicantB@test.com",
-                            FullName = "Applicant B"
-                        });
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.Application", b =>

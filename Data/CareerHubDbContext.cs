@@ -95,6 +95,44 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
         .WithMany(a => a.Applications)
         .HasForeignKey(ap => ap.ApplicantId)
         .OnDelete(DeleteBehavior.Restrict);
+
+        //SEED DATA
+       var c1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var c2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var c3 = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var c4 = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var c5 = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        // Applicant IDs
+        var applicantA = Guid.Parse("a1111111-1111-1111-1111-111111111111");
+        var applicantB = Guid.Parse("b2222222-2222-2222-2222-222222222222");
+
+        // Static date so EF Core doesn't throw a warning
+        var staticDate = DateTime.Parse("2026-06-03").ToUniversalTime();
+
+        // Seed Companies
+        modelBuilder.Entity<Company>().HasData(
+            new Company { Id = c1, Name = "TechCorp", Website = "techcorp.com" },
+            new Company { Id = c2, Name = "FinanceFlow", Website = "financeflow.com" },
+            new Company { Id = c3, Name = "HealthNet", Website = "healthnet.com" },
+            new Company { Id = c4, Name = "EduBuild", Website = "edubuild.com" },
+            new Company { Id = c5, Name = "LogiRoute", Website = "logiroute.com" }
+        );
+
+        // Seed Job Listings
+        modelBuilder.Entity<JobListing>().HasData(
+            new JobListing { Id = Guid.Parse("91111111-1111-1111-1111-111111111111"), CompanyId = c1, Title = "Backend Developer", Description = "C# Engineer needed", Location = "Remote", PostedAt = staticDate, IsActive = true },
+            new JobListing { Id = Guid.Parse("92222222-2222-2222-2222-222222222222"), CompanyId = c2, Title = "Data Analyst", Description = "SQL expert needed", Location = "Cape Town", PostedAt = staticDate, IsActive = true },
+            new JobListing { Id = Guid.Parse("93333333-3333-3333-3333-333333333333"), CompanyId = c3, Title = "DevOps Specialist", Description = "Docker expert", Location = "Remote", PostedAt = staticDate, IsActive = true },
+            new JobListing { Id = Guid.Parse("94444444-4444-4444-4444-444444444444"), CompanyId = c4, Title = "Frontend Developer", Description = "React components", Location = "Johannesburg", PostedAt = staticDate, IsActive = true },
+            new JobListing { Id = Guid.Parse("95555555-5555-5555-5555-555555555555"), CompanyId = c5, Title = "Cloud Architect", Description = "AWS infra design", Location = "Remote", PostedAt = staticDate, IsActive = true }
+        );
+
+        // Seed Test Applicants (Matches your database schema requirements)
+        modelBuilder.Entity<Applicant>().HasData(
+            new Applicant { Id = applicantA, FullName = "Applicant A", Email = "applicantA@test.com" },
+            new Applicant { Id = applicantB, FullName = "Applicant B", Email = "applicantB@test.com" }
+        );
     }
 }
 

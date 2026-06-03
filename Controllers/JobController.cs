@@ -27,10 +27,27 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
 
         
         var response = jobs.Select(MapToResponse).ToList();
+        return Ok(response);
+        var jobs = await _dbContext.JobListings.ToListAsync(); // Query 1: Gets all 5 jobs
 
-        return Ok(response);*/
+        var response = new List<JobResponse>();
+        foreach (var j in jobs)
+        {
+            // Queries 2 to 6: Hits the database separately for EVERY single job to find the company name
+            var companyName = _dbContext.Companies.Find(j.CompanyId)?.Name ?? "";
+
+            response.Add(new JobResponse {
+                Id = j.Id,
+                Title = j.Title,
+                Location = j.Location,
+                Company = companyName
+            });
+        }
+        return Ok(response);
+        */
+        
         var response = await _dbContext.JobListings
-            .AsNoTracking()
+            .AsNoTracking() //no change tracker, less memory, fater queries
             .Select(j => new JobResponse
             {
                 Id = j.Id,
@@ -69,9 +86,11 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
                 CompanyName = j.Company.Name,
                 
                 // Pulls only the name strings out of the join table
-                AppliedApplicantNames = j.Applications
-                    .Select(ap => ap.Applicant.FullName)
-                    .ToList()
+                Applications = j.Applications.Select(ap => new ApplicationDetailResponse
+                {
+                    FullName = ap.Applicant.FullName,
+                    AppliedAt = ap.SubmittedAt
+                }).ToList()
             })
             .FirstOrDefaultAsync();
 

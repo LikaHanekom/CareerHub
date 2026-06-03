@@ -20,6 +20,8 @@ public class JobResponse
 
     public int ApplicationCount { get; set; }
 
+    public List<ApplicationDetailResponse> Applications { get; set; } = new();
+
     // Computed property that converts numeric ranges into human-readable strings
     public string SalaryDisplay
     {

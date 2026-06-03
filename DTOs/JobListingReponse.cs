@@ -17,4 +17,5 @@ public class JobDetailResponse
     
     // Only expose a list of names 
     public List<string> AppliedApplicantNames { get; set; } = new();
+    public List<ApplicationDetailResponse> Applications { get; set; } = new();
 }

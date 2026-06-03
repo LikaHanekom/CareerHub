@@ -9,5 +9,5 @@ public class Company
 
     public string Website {get; set;} = string.Empty;
 
-    public ICollection<JobListing> Joblistings {get; set;} = new List<JobListing>();
+    public ICollection<JobListing> JobListings {get; set;} = new List<JobListing>();
 }

@@ -135,3 +135,21 @@ Alternatively HttpOnly Cookies needs to be used for safe storage. Browser JavaSc
  **3. Connection String Security:**
  The connection string is the master key to the database. appsettings.json is the global faalback file whereas the asppsettings.Development.json is strictly for your local machine. By placing local connection strings in your development file, will ensure that production credentials arent accidentally leaked. 
  In production, no production connection strings should be hardcoded. If it is leakekd this could compromise the integrity of your data and compromises the database. Secure alternatives such as Environment Variebales should rather be used on your hosting platform. This helps to keep the key out of any code bases.
+
+ ## Assignment 2.2:
+**Question 1:**
+Company - Joblistings is a one-many relationship
+
+Company can have many joblistings, but each job listing can only belong to one company.
+
+Joblistings - Applications is a one-many relationship
+One joblisting can have manu applications, but a single application can only have one job listing.
+
+Applicant - Applications  is a one-many relationship
+An applicant can make many applications, but one application can only have one applicant.
+
+**Question 2**
+Application needs to contain business logic, such as staus and submitted_at, because an Application needs more additional information the table should rather be modeled as a full entity and not a hidden join table.
+
+**Question 3**
+While Joblistings exist, a company cannot be deleted. The company is the one making the joblistings. Should a company be deleted the joblistings should be removed alongside it. A joblisting without a company does not have a purpose. No company will be infored should someone apply. The joblisting will have no purpose.

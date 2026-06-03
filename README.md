@@ -153,3 +153,16 @@ Application needs to contain business logic, such as staus and submitted_at, bec
 
 **Question 3**
 While Joblistings exist, a company cannot be deleted. The company is the one making the joblistings. Should a company be deleted the joblistings should be removed alongside it. A joblisting without a company does not have a purpose. No company will be infored should someone apply. The joblisting will have no purpose.
+
+**Relationship Design Decisions**
+Company - Joblistings I implemented DeleteBehavior.Restrict between the Company and Joblistings relationship. This ensures that a Company cannot be deleted if it still has active associated joblistings connected to it. This ensures that there will be no orphan Job Listings, forcing the system to delete Joblistings before a company can be removed. 
+
+**The N+1 Problem**
+Before implementing the eager loading the terminal output showed a single SELECT to fetch the list of job listings. Followed by N subsequent Select queries to fetch the company name for each record. After implementing the projection the Single SELECT query utilized an Inner join to retrieve both the Job and Company data in one trip.
+
+This N+ 1 problem can deceive developers as they perform good on small datasets, but in a production environment will result in increased database loading, high latency and can ever crash the service. 
+
+**Read vs Write**
+With change tracking, EF core is tracking each object that is retrieved and maintains a single snapshot of the entity, which in turn allows the context to automatically detect changes. On the other hand without change tracking EF core does not maintain a snapshot, which reduces memory usage and CPU overhead. This happens due to the context not needing to evaluate the snapshots with previous ones. 
+
+If you treat a photo (NoTracking) like a live document (Tracking), you'll make changes that never actually get saved to the database, and the system won't warn you.

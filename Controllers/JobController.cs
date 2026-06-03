@@ -19,23 +19,68 @@ public class JobController(CareerHubDbContext dbContext): ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
     {
-        var jobs = await _dbContext.JobListings.ToListAsync();//gets *FROM job_listings
-        var response = jobs.Select(MapToResponse);
+
+        // N+1 - Eager Loading
+        var jobs = await _dbContext.JobListings
+            .Include(j => j.Company)
+            .ToListAsync();
+
+        
+        var response = jobs.Select(MapToResponse).ToList();
+
         return Ok(response);
+        /*var response = await _dbContext.JobListings
+            .AsNoTracking()
+            .Select(j => new JobResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Location = j.Location,
+                Description = j.Description,
+                Type = j.Type,
+                PostedAt = j.PostedAt,
+                IsActive = j.IsActive,
+                Company = j.Company.Name, // Maps the string field from navigation safely
+                
+                // Count is calculated directly inside the database via SQL COUNT()
+                ApplicationCount = j.Applications.Count() 
+            })
+            .ToListAsync();
+
+        return Ok(response);*/
     }
 
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)
     {
-        var job = await _dbContext.JobListings.FindAsync(id);
+        var jobDetail = await _dbContext.JobListings
+            .AsNoTracking()
+            .Where(j => j.Id == id)
+            .Select(j => new JobDetailResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Description = j.Description,
+                Location = j.Location,
+                Type = j.Type,
+                PostedAt = j.PostedAt,
+                IsActive = j.IsActive,
+                CompanyName = j.Company.Name,
+                
+                // Pulls only the name strings out of the join table
+                AppliedApplicantNames = j.Applications
+                    .Select(ap => ap.Applicant.FullName)
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
 
-        if (job == null)
+        if (jobDetail == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        return Ok(MapToResponse(job));
+        return Ok(jobDetail);
     }
 
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────

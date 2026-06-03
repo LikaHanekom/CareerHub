@@ -15,6 +15,13 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
 
     public DbSet<Application> Applications => Set<Application>();
 
+    //temporary
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // This will temporarily spit out raw SQL statements into your terminal
+        optionsBuilder.LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<JobListing>(entity =>
@@ -90,6 +97,8 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
         .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+
 
 public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CareerHubDbContext>
 {

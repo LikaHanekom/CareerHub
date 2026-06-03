@@ -18,6 +18,8 @@ public class JobResponse
     public decimal? SalaryMin { get; set; }
     public decimal? SalaryMax { get; set; }
 
+    public int ApplicationCount { get; set; }
+
     // Computed property that converts numeric ranges into human-readable strings
     public string SalaryDisplay
     {

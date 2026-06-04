@@ -32,8 +32,10 @@ public class GlobalExceptionHandler : IExceptionHandler
             => StatusCodes.Status400BadRequest, 
             JobNotFoundException => StatusCodes.Status404NotFound,
             CompanyNotFoundException => StatusCodes.Status404NotFound,
+            ApplicantNotFoundException => StatusCodes.Status404NotFound,
             DuplicateJobListingException => StatusCodes.Status409Conflict,
             DuplicateCompanyException => StatusCodes.Status409Conflict,
+            DuplicateApplicantException => StatusCodes.Status409Conflict,
             InvalidJobStatusException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError
         };

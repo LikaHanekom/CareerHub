@@ -11,6 +11,7 @@ public static class ServiceExtensions
         services.AddScoped<IJobService, JobService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICompanyService, CompanyService>();
+        services.AddScoped<IApplicantService, ApplicantService>();
 
         return services;
     }

@@ -100,25 +100,6 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
             ap.ApplicantId
         });
 
-        //Company Relationship
-        modelBuilder.Entity<JobListing>() //Targets Joblistings classs: I want to configure the joblistings database mapping rules
-        .HasOne(j => j.Company) //Tells EF every Joblisting is connected to one company
-        .WithMany(c => c.JobListings)// Tells EF on the other side 1 Company can own many job listings
-        .HasForeignKey(j => j.CompanyId) 
-        .OnDelete(DeleteBehavior.Restrict);//if you try to delete company that has active joblistigns the delete will be restricted
-
-        //Application Relationships
-        modelBuilder.Entity<Application>()
-        .HasOne(ap => ap.JobListing)
-        .WithMany(j => j.Applications)
-        .HasForeignKey(ap => ap.JobListingId)
-        .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<Application>()
-        .HasOne(ap => ap.Applicant)
-        .WithMany(a => a.Applications)
-        .HasForeignKey(ap => ap.ApplicantId)
-        .OnDelete(DeleteBehavior.Restrict);
 
         var c1 = Guid.Parse("75ba7d3e-2b50-4841-860e-cbfb4e54e4df"); // TechCorp
         var c2 = Guid.Parse("2d5d8e24-9b16-4d2a-89a1-fbf22d4f5c92"); // FinanceFlow

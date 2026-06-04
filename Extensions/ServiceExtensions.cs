@@ -10,6 +10,7 @@ public static class ServiceExtensions
         // Register JobServers
         services.AddScoped<IJobService, JobService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICompanyService, CompanyService>();
 
         return services;
     }

@@ -9,8 +9,9 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Extensions;
 
-// 1. Configure the LoggerConfiguration at the very top
+// LoggerConfiguration
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -21,10 +22,10 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Use Serilog
+    // Serilog
     builder.Host.UseSerilog();
 
-    // Configure the global Problem Details pipeline
+    //Global Problem Details pipeline
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
@@ -38,9 +39,8 @@ try
     // Scalar / OpenAPI configuration
     builder.Services.AddOpenApi();
 
-    builder.Services.AddScoped<IAuthService, AuthService>();
     //Scalar configuration
-    builder.Services.AddScoped<JobService>();
+    builder.Services.AddApplicationServices();
 
     //Builder.config, tool to read configuration settings
     var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.

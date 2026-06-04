@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    [Migration("20260603182926_SeedInitialJobsAndCompanies")]
-    partial class SeedInitialJobsAndCompanies
+    [Migration("20260604185246_FixedForeignKeysBaseline")]
+    partial class FixedForeignKeysBaseline
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -47,6 +47,20 @@ namespace CareerHub.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("applicants", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a1111111-1111-1111-1111-111111111111"),
+                            Email = "applicantA@test.com",
+                            FullName = "Applicant A"
+                        },
+                        new
+                        {
+                            Id = new Guid("b2222222-2222-2222-2222-222222222222"),
+                            Email = "applicantB@test.com",
+                            FullName = "Applicant B"
+                        });
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.Application", b =>
@@ -93,31 +107,31 @@ namespace CareerHub.Api.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Id = new Guid("75ba7d3e-2b50-4841-860e-cbfb4e54e4df"),
                             Name = "TechCorp",
                             Website = "techcorp.com"
                         },
                         new
                         {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            Id = new Guid("2d5d8e24-9b16-4d2a-89a1-fbf22d4f5c92"),
                             Name = "FinanceFlow",
                             Website = "financeflow.com"
                         },
                         new
                         {
-                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            Id = new Guid("a43fa893-7c3e-4b72-ac2b-923fca8565b3"),
                             Name = "HealthNet",
                             Website = "healthnet.com"
                         },
                         new
                         {
-                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            Id = new Guid("b11c34ef-56d1-419a-9cb8-b2a1aefb23d4"),
                             Name = "EduBuild",
                             Website = "edubuild.com"
                         },
                         new
                         {
-                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            Id = new Guid("e8fa4292-1a4b-4b11-bdc1-42cb9fa234fe"),
                             Name = "LogiRoute",
                             Website = "logiroute.com"
                         });
@@ -168,7 +182,7 @@ namespace CareerHub.Api.Migrations
                         new
                         {
                             Id = new Guid("91111111-1111-1111-1111-111111111111"),
-                            CompanyId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            CompanyId = new Guid("75ba7d3e-2b50-4841-860e-cbfb4e54e4df"),
                             Description = "C# Engineer needed",
                             IsActive = true,
                             Location = "Remote",
@@ -179,7 +193,7 @@ namespace CareerHub.Api.Migrations
                         new
                         {
                             Id = new Guid("92222222-2222-2222-2222-222222222222"),
-                            CompanyId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            CompanyId = new Guid("2d5d8e24-9b16-4d2a-89a1-fbf22d4f5c92"),
                             Description = "SQL expert needed",
                             IsActive = true,
                             Location = "Cape Town",
@@ -190,7 +204,7 @@ namespace CareerHub.Api.Migrations
                         new
                         {
                             Id = new Guid("93333333-3333-3333-3333-333333333333"),
-                            CompanyId = new Guid("33333333-3333-3333-3333-333333333333"),
+                            CompanyId = new Guid("a43fa893-7c3e-4b72-ac2b-923fca8565b3"),
                             Description = "Docker expert",
                             IsActive = true,
                             Location = "Remote",
@@ -201,7 +215,7 @@ namespace CareerHub.Api.Migrations
                         new
                         {
                             Id = new Guid("94444444-4444-4444-4444-444444444444"),
-                            CompanyId = new Guid("44444444-4444-4444-4444-444444444444"),
+                            CompanyId = new Guid("b11c34ef-56d1-419a-9cb8-b2a1aefb23d4"),
                             Description = "React components",
                             IsActive = true,
                             Location = "Johannesburg",
@@ -212,7 +226,7 @@ namespace CareerHub.Api.Migrations
                         new
                         {
                             Id = new Guid("95555555-5555-5555-5555-555555555555"),
-                            CompanyId = new Guid("55555555-5555-5555-5555-555555555555"),
+                            CompanyId = new Guid("e8fa4292-1a4b-4b11-bdc1-42cb9fa234fe"),
                             Description = "AWS infra design",
                             IsActive = true,
                             Location = "Remote",

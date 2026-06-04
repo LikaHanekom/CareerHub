@@ -96,12 +96,11 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
         .HasForeignKey(ap => ap.ApplicantId)
         .OnDelete(DeleteBehavior.Restrict);
 
-        //SEED DATA
-       var c1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        var c2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var c3 = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        var c4 = Guid.Parse("44444444-4444-4444-4444-444444444444");
-        var c5 = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        var c1 = Guid.Parse("75ba7d3e-2b50-4841-860e-cbfb4e54e4df"); // TechCorp
+        var c2 = Guid.Parse("2d5d8e24-9b16-4d2a-89a1-fbf22d4f5c92"); // FinanceFlow
+        var c3 = Guid.Parse("a43fa893-7c3e-4b72-ac2b-923fca8565b3"); // HealthNet
+        var c4 = Guid.Parse("b11c34ef-56d1-419a-9cb8-b2a1aefb23d4"); // EduBuild
+        var c5 = Guid.Parse("e8fa4292-1a4b-4b11-bdc1-42cb9fa234fe"); // LogiRoute
 
         // Applicant IDs
         var applicantA = Guid.Parse("a1111111-1111-1111-1111-111111111111");
@@ -110,7 +109,7 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
         // Static date so EF Core doesn't throw a warning
         var staticDate = DateTime.Parse("2026-06-03").ToUniversalTime();
 
-        // Seed Companies
+        // 2. SEED COMPANIES USING THE CLEAN VARIABLES
         modelBuilder.Entity<Company>().HasData(
             new Company { Id = c1, Name = "TechCorp", Website = "techcorp.com" },
             new Company { Id = c2, Name = "FinanceFlow", Website = "financeflow.com" },
@@ -119,7 +118,7 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
             new Company { Id = c5, Name = "LogiRoute", Website = "logiroute.com" }
         );
 
-        // Seed Job Listings
+        // 3. SEED JOB LISTINGS (Now c1 through c5 point to valid companies!)
         modelBuilder.Entity<JobListing>().HasData(
             new JobListing { Id = Guid.Parse("91111111-1111-1111-1111-111111111111"), CompanyId = c1, Title = "Backend Developer", Description = "C# Engineer needed", Location = "Remote", PostedAt = staticDate, IsActive = true },
             new JobListing { Id = Guid.Parse("92222222-2222-2222-2222-222222222222"), CompanyId = c2, Title = "Data Analyst", Description = "SQL expert needed", Location = "Cape Town", PostedAt = staticDate, IsActive = true },
@@ -128,29 +127,30 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
             new JobListing { Id = Guid.Parse("95555555-5555-5555-5555-555555555555"), CompanyId = c5, Title = "Cloud Architect", Description = "AWS infra design", Location = "Remote", PostedAt = staticDate, IsActive = true }
         );
 
-        // Seed Test Applicants (Matches your database schema requirements)
+        // Seed Test Applicants
         modelBuilder.Entity<Applicant>().HasData(
             new Applicant { Id = applicantA, FullName = "Applicant A", Email = "applicantA@test.com" },
             new Applicant { Id = applicantB, FullName = "Applicant B", Email = "applicantB@test.com" }
         );
     }
-}
 
 
 
-public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CareerHubDbContext>
-{
-    public CareerHubDbContext CreateDbContext(string[] args)
+    public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CareerHubDbContext>
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.Development.json")
-            .Build();
+        public CareerHubDbContext CreateDbContext(string[] args)
+        {
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.Development.json")
+                .Build();
 
-        var optionsBuilder = new DbContextOptionsBuilder<CareerHubDbContext>();
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        optionsBuilder.UseNpgsql(connectionString);
+            var optionsBuilder = new DbContextOptionsBuilder<CareerHubDbContext>();
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            optionsBuilder.UseNpgsql(connectionString);
 
-        return new CareerHubDbContext(optionsBuilder.Options);
+            return new CareerHubDbContext(optionsBuilder.Options);
+        }
     }
+
 }

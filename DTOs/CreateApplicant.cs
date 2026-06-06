@@ -1,6 +1,7 @@
+using System;
 namespace CareerHub.Api.DTOs
 {
-    public class CreateApplicantDto
+    public class CreateApplicant
     {
         public required string FullName { get; set; }
         public required string Email { get; set; }

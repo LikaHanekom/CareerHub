@@ -13,7 +13,7 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<bool> HasApplicantAlreadyAppliedAsync(Guid applicantId, Guid jobListingId)
     {
         return await _context.Applications
-        .AnyAsync(a => a.ApplicantId == applicantId && a.JobListingId == jobListingId);
+            .AnyAsync(a => a.ApplicantId == applicantId && a.JobListingId == jobListingId);
     }
 
     public async Task AddAsync(Application application)
@@ -27,19 +27,30 @@ public class ApplicationRepository : IApplicationRepository
         return await _context.Applications
             .AsNoTracking()
             .Where(a => a.ApplicantId == applicantId)
-            .Include(a => a.JobListing) // Job details so they know what they applied for
+            .Include(a => a.JobListing) 
             .ToListAsync();
     }
 
-   
     public async Task<IEnumerable<Application>> GetApplicationsForListingAsync(Guid jobListingId)
     {
         return await _context.Applications
             .AsNoTracking()
             .Where(a => a.JobListingId == jobListingId)
-            .Include(a => a.Applicant) // Applicant profile details     
+            .Include(a => a.Applicant)     
             .ToListAsync();
     }
 
+    
+    public async Task<Application?> GetApplicationByIdAsync(Guid id)
+    {
+        return await _context.Applications
+            .FirstOrDefaultAsync(a => a.Id == id);
+    }
 
+    
+    public async Task UpdateAsync(Application application)
+    {
+        _context.Applications.Update(application);
+        await _context.SaveChangesAsync();
+    }
 }

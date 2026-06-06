@@ -1,28 +1,30 @@
-using CareerHub.Api.Data;
-using CareerHub.Api.Models;
-using CareerHub.Api.DTOs;       
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using CareerHub.Api.Models; 
+using CareerHub.Api.DTOs;
+using CareerHub.Api.Repositories;
 using CareerHub.Api.Exceptions; 
-using Microsoft.EntityFrameworkCore;
-
 namespace CareerHub.Api.Services
 {
     public class CompanyService : ICompanyService
     {
-        private readonly CareerHubDbContext _context;
+        private readonly ICompanyRepository _companyRepo;
 
-        public CompanyService(CareerHubDbContext context)
+        // Injecting the repository interface to maintain strict decoupling
+        public CompanyService(ICompanyRepository companyRepo)
         {
-            _context = context;
+            _companyRepo = companyRepo;
         }
 
         public async Task<IEnumerable<Company>> GetAllCompaniesAsync()
         {
-            return await _context.Companies.ToListAsync();
+            return await _companyRepo.GetAllCompaniesAsync();
         }
 
         public async Task<Company?> GetCompanyByIdAsync(Guid id)
         {
-            return await _context.Companies.FindAsync(id);
+            return await _companyRepo.GetCompanyByIdAsync(id);
         }
 
         public async Task<Company> CreateCompanyAsync(CreateCompanyDto dto)
@@ -32,26 +34,29 @@ namespace CareerHub.Api.Services
                 throw new ArgumentException("Company name cannot be empty.");
             }
 
-        
-            var exists = await _context.Companies
-                .AnyAsync(c => c.Name != null && c.Name.ToLower() == dto.Name.ToLower());
-
+            // Business Validation Rule: Prevent creating duplicate companies by name
+            var exists = await _companyRepo.DoesCompanyExistByNameAsync(dto.Name);
             if (exists)
             {
-                throw new DuplicateCompanyException(dto.Name);
+                // Throws a clean, trackable business exception handled by your GlobalExceptionHandler
+                throw new DuplicateJobListingException($"A company named '{dto.Name}' already exists."); 
             }
 
+            // Map incoming DTO values to the database domain model tracking layout
             var company = new Company
             {
-                Id = Guid.NewGuid(), 
+                Id = Guid.NewGuid(),
                 Name = dto.Name,
-                Website = dto.Website, 
-                JobListings = new List<JobListing>() 
+                
             };
 
-            _context.Companies.Add(company);
-            await _context.SaveChangesAsync();
-            return company;
+            
+            return await _companyRepo.CreateCompanyAsync(company);
+        }
+
+        public async Task<bool> DoesCompanyExistByNameAsync(string name)
+        {
+            return await _companyRepo.DoesCompanyExistByNameAsync(name);
         }
     }
 }

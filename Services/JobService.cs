@@ -16,7 +16,27 @@ public class JobService : IJobService
 
     public async Task<IEnumerable<JobResponse>> GetAllJobsAsync()
     {
-        return await _repo.GetActiveListingsWithCompanyAsync();
+        var jobs = await _repo.GetActiveListingsWithCompanyAsync();
+
+        var response = new List<JobResponse>();
+    
+    foreach (var job in jobs)
+    {
+        response.Add(new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            
+            Company = job.Company?.Name ?? "Unknown" 
+        });
+    }
+    
+    return response;
     }
 
     public async Task<JobResponse?> GetJobByIdAsync(Guid id)
@@ -43,7 +63,7 @@ public class JobService : IJobService
         // Delegate the database check entirely to the repository layer
         return await _repo.DoesListingExistAsync(title, companyId);
     }
-                                                                                                        
+
     public async Task<JobResponse> CreateJobAsync(CreateJobRequest request)
     {
         // Use the check right here to enforce your duplicate business rule!

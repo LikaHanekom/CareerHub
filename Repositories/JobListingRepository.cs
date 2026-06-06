@@ -14,22 +14,12 @@ namespace CareerHub.Api.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<JobResponse>> GetActiveListingsWithCompanyAsync()
+        public async Task<IEnumerable<JobListing>> GetActiveListingsWithCompanyAsync()
         {
             return await _context.JobListings
                 .AsNoTracking()
-                .Select(j => new JobResponse
-                {
-                    Id = j.Id,
-                    Title = j.Title,
-                    Location = j.Location,
-                    Description = j.Description,
-                    Type = j.Type,
-                    PostedAt = j.PostedAt,
-                    IsActive = j.IsActive,
-                    Company = j.Company != null ? j.Company.Name : "Unknown",
-                    ApplicationCount = j.Applications.Count()
-                })
+                .Where(j => j.IsActive)
+                .Include(j => j.Company) 
                 .ToListAsync();
         }
 
@@ -63,6 +53,18 @@ namespace CareerHub.Api.Repositories
         {
             _context.JobListings.Remove(listing);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> IsListingOpenAsync(Guid id)
+        {
+            var job = await _context.JobListings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null) return false;
+
+            
+            return job.IsActive; 
         }
     }
 }

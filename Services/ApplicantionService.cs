@@ -15,15 +15,6 @@ namespace CareerHub.Api.Services
         private readonly IApplicationRepository _applicationRepo;
         private readonly IJobListingRepository _jobRepo;
 
-        
-        private static readonly HashSet<(ApplicationStatus From, ApplicationStatus To)> AllowedTransitions = new()
-        {
-            (ApplicationStatus.Submitted, ApplicationStatus.Reviewing),
-            (ApplicationStatus.Reviewing, ApplicationStatus.InterviewScheduled),
-            (ApplicationStatus.Reviewing, ApplicationStatus.Rejected),
-            (ApplicationStatus.InterviewScheduled, ApplicationStatus.Hired),
-            (ApplicationStatus.InterviewScheduled, ApplicationStatus.Rejected)
-        };
 
         public ApplicationService(IApplicationRepository applicationRepo, IJobListingRepository jobRepo)
         {
@@ -69,7 +60,7 @@ namespace CareerHub.Api.Services
                 throw new ApplicationNotFoundException(jobListingId);
             }
 
-            if (!IsValidTransition(application.Status, newStatus))
+            if (!ApplicationStatusValidator.IsValidTransition(application.Status, newStatus))
             {
                 throw new InvalidStatusTransitionException(application.Status.ToString(), newStatus.ToString());
             }
@@ -91,14 +82,14 @@ namespace CareerHub.Api.Services
                 throw new UnauthorizedAccessException("Applicants are only permitted to withdraw their own applications.");
             }
 
-            application.Status = CareerHub.Api.Enums.ApplicationStatus.Cancelled;
+            application.Status = CareerHub.Api.Enums.ApplicationStatus.Rejected;
             await _applicationRepo.UpdateAsync(application);
         }
 
         
         public bool IsValidTransition(ApplicationStatus currentStatus, ApplicationStatus targetStatus)
         {
-            return AllowedTransitions.Contains((currentStatus, targetStatus));
+            return ApplicationStatusValidator.IsValidTransition(currentStatus, targetStatus);
         }
     }
 }

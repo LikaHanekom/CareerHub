@@ -12,7 +12,7 @@ public static class ServiceExtensions
     {
         // Register JobServers
         services.AddScoped<IApplicantRepository, ApplicantRepository>();
-            services.AddSingleton<IApplicantService, ApplicantService>();
+            services.AddScoped<IApplicantService, ApplicantService>();
             return services;
     }
 

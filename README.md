@@ -166,3 +166,87 @@ This N+ 1 problem can deceive developers as they perform good on small datasets,
 With change tracking, EF core is tracking each object that is retrieved and maintains a single snapshot of the entity, which in turn allows the context to automatically detect changes. On the other hand without change tracking EF core does not maintain a snapshot, which reduces memory usage and CPU overhead. This happens due to the context not needing to evaluate the snapshots with previous ones. 
 
 If you treat a photo (NoTracking) like a live document (Tracking), you'll make changes that never actually get saved to the database, and the system won't warn you.
+
+ ## Assignment 2.3:
+ **Boundary Decision**
+ I'm choosing a One Repository per Entity approach, for example, IJobListingRepository, IApplicantRepository and IApplicationRepository. When the ApplicationService need to check if JobListings exists, it will inject IJobListingRepository alongside its own repository. This will ensure the clean seperation of concerns
+
+  **Return Types**
+  Returning IQueryable<T> fro the repository layer breaks abstraction as it leaves the database execution defered. It forces the Service layer to import Misrosoft.EntityFrameworkCore to resolve. ToListAsyc() or FirstOrDefaultAsync(). This completely defeats the purpose of the repository layer.
+
+ **Lifetime Choices**
+ CareerHubContext: should be scoped, otherwise it could cause multiple parallel API requests to run that will cross threads on the same context instance, which will cause runtime crashes.
+
+ JobListingService: Scoped: to match the request pipeline scope
+
+ ApplicationRepository: Scoped: it neess to be injected into the Scoped Careerhub.
+
+ ApplicationStatusCache: Singleton: Hardcoded rules that won't change based in database transactions.
+
+  **Status Transitions**
+  The service layer should enforce this. Controllers cannot own this as background and other entrypoints might update statusees outside of HTTP. Repositories jobs are data access and not to dictate the core corporate workflow behavior. Therefore they should not own it.
+
+
+  **Question 5: Deliberate crash**
+  ***Observation of Error***
+  I deliberately changed IApplicantService from a Scoped to a Singleton. IApplicantRepository I left as Scoped lifetime. When I tried running the application, it immediately refused to boot up and threw the following error: 
+
+  System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: CareerHub.Api.Services.IApplicantService Lifetime: Singleton ImplementationType: CareerHub.Api.Services.ApplicantService': Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: CareerHub.Api.Services.IApplicantService Lifetime: Singleton ImplementationType: CareerHub.Api.Services.ApplicantService': Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.
+ ---> System.InvalidOperationException: Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitCallSite(ServiceCallSite callSite, CallSiteValidatorState argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitConstructor(ConstructorCallSite constructorCallSite, CallSiteValidatorState state)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitCallSite(ServiceCallSite callSite, CallSiteValidatorState argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\alika\CareerHub.Api\Program.cs:line 96
+
+***Fix for the Error***
+I was able to resolve the error by changing the AddSingleton to AddScoped. The service lifetime needs to match their underlying dependencies and therefore the DI engine was able to start up once their lifetimes correlated.
+
+**Repository Design Decision**
+I went with the concept of domain aggregation. I established explicit boundaries for the data access layer. For example: IApplicationRepository - handles all applicant applications, state transition and lifecycle updates. IJobListingRepository - manages operational queries specifically focussing on open/closed job postings and listing details.
+
+#### The Choice Regarding ICompanyRepository
+I explicitly chose to implement a dedicated ICompanyRepository alongside the other domain repositories. This boundary was drawn because:
+- Strict Separation of Concerns: Giving Company its own repository ensures that company-specific data mutations (such as managing corporate profiles or onboarding new clients) are completely isolated from job listings and applications.
+- Domain Autonomy:A Company represents a core root aggregate within the CareerHub system. By provisioning a distinct repository layer, this prevents the database query methods from becoming bloated or mixed with unrelated listing logic, making the data access layer highly maintainable and clean.
+
+### What the Controller Lost
+During the architectural cleanup, the controllers were stripped of all heavy logic, leaving them strictly to perform three basic infrastructure tasks: Parse the HTTP Request $\rightarrow$ Call the Service Layer $\rightarrow$ Return the HTTP Status. 
+
+The following logic pieces were stripped out of the controllers and re-homed:
+
+| Logic Extracted | New Layer Location | Architectural Justification |
+| :--- | :--- | :--- |
+| **Business & Rule Validation** *(e.g., checking if a listing is closed or an application is a duplicate)* | **Service Layer (`ApplicationService`)** | The controller should never dictate domain-specific workflows. Moving this here isolates business integrity from our HTTP framework. |
+| **State Machine Verification** *(Validating status transitions)* | **Domain / Engine Layer (`ApplicationStatusValidator`)** | Status transition sequencing is an internal system rule. It must live in a centralized, framework-agnostic space. |
+| **Manual Data Mapping / Assignment** *(Instantiating domain models)* | **Service Layer / DTO Layer** | Controllers shouldn't manually bind internal property parameters; abstracting this keeps API schemas completely decoupled from DB shapes. |
+| **Try-Catch Blocks & HTTP Error Mapping** | **Middleware Layer (`GlobalExceptionHandler`)** | Eliminates cluttered defensive code blocks across action methods. Centralizing error handling ensures a unified API error shape. |
+
+
+
+### 3. Status Transition Design
+
+To enforce valid application lifecycle states without introducing messy procedural code pathways, the work flow rules were treated as a Directed Graph Map. 
+
+Instead of writing complex, nested if/else statements or cascading switch blocks that are highly prone to edge-case bugs, the rules are configured entirely as data inside a static, read-only HashSet<(ApplicationStatus From, ApplicationStatus To)> collection container.
+
+#### One-Line Changes
+Because the evaluation logic uses a highly optimized, constant-time HashSet.Contains() lookup method, the validation engine itself never needs to change when a state rule evolves. 
+
+For example, if business requirements change tomorrow to allow an application to move directly from `Offered` $\rightarrow$ `Accepted`, a developer only needs to modify exactly one line of code inside our central configuration file:
+
+### 4. Lifetime Misconfiguration
+The way I understand this is that a Singleton is created once when the app opens and lives forever, a scoped on the other hand is created freshly for every HTTP request and then destoyed right after. If the Scoped repository is inside a singleton the service the singleton will capture it and force it to live forever, resulting in the system crashing immediately on startup.
+
+DbContext is not thread safe, and when a singleton holds a scoped, when different users try hitting the API at the same time they will all end up sharing the same database tracking context. This will lead to data corruption, crash queries and mixed up user sessions.
+
+The database context will be locked in memory forever, instead of being cleaned up. This will casue the apps data to keep climbing and accumilating until the entire server crashes.

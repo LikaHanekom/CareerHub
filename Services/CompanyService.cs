@@ -39,7 +39,7 @@ namespace CareerHub.Api.Services
             if (exists)
             {
                 // Throws a clean, trackable business exception handled by your GlobalExceptionHandler
-                throw new DuplicateJobListingException($"A company named '{dto.Name}' already exists."); 
+                throw new DuplicateJobListingException(dto.Name); 
             }
 
             // Map incoming DTO values to the database domain model tracking layout

@@ -39,8 +39,20 @@ try
     // Scalar / OpenAPI configuration
     builder.Services.AddOpenApi();
 
+    // 1. Enforce strict build-time Dependency Injection validation
+    builder.Host.UseDefaultServiceProvider(options =>
+    {
+        options.ValidateScopes = true;       
+        options.ValidateOnBuild = true;     
+    });
+
     //Scalar configuration
-    builder.Services.AddApplicationServices();
+    builder.Services.AddApplicantFeatures();
+    builder.Services.AddJobFeatures();
+    builder.Services.AddCompanyFeatures();
+    builder.Services.AddApplicationFeatures();
+
+    builder.Services.AddControllers();
 
     //Builder.config, tool to read configuration settings
     var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.

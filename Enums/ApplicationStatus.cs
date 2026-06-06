@@ -5,5 +5,6 @@ public enum ApplicationStatus
     Reviewing,
     InterviewScheduled,
     Rejected,
-    Hired
+    Hired,
+    Cancelled
 }

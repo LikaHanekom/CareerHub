@@ -91,7 +91,7 @@ namespace CareerHub.Api.Services
                 throw new UnauthorizedAccessException("Applicants are only permitted to withdraw their own applications.");
             }
 
-            application.Status = ApplicationStatus.Cancelled; 
+            application.Status = CareerHub.Api.Enums.ApplicationStatus.Cancelled;
             await _applicationRepo.UpdateAsync(application);
         }
 

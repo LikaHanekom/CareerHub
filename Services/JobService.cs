@@ -57,7 +57,7 @@ public class JobService : IJobService
         };
     }
 
-    // 🚀 FIX: Added ExistsAsync back to implement the interface member cleanly
+    
     public async Task<bool> ExistsAsync(string title, Guid companyId)
     {
         // Delegate the database check entirely to the repository layer

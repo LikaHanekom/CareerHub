@@ -37,8 +37,7 @@ namespace CareerHub.Api.Services
             }
 
             var application = new Application
-            {
-                Id = Guid.NewGuid(), 
+            { 
                 JobListingId = request.JobListingId,
                 ApplicantId = request.ApplicantId,
                 SubmittedAt = DateTime.UtcNow,

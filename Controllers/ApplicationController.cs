@@ -34,16 +34,9 @@ public class ApplicationController(IApplicationService applicationService) : Con
     public async Task<IActionResult> UpdateStatus(
         [FromQuery] Guid applicantId, 
         [FromQuery] Guid jobListingId, 
-        [FromBody] ApplicationStatus newStatus)
+        [FromQuery] ApplicationStatus newStatus) 
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        // Service layer handles IsValidTransition check internally
         await _applicationService.UpdateStatusAsync(applicantId, jobListingId, newStatus);
-
         return NoContent(); 
     }
 

@@ -24,6 +24,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         var statusCode = exception switch
         {
+            
             //database
             DbUpdateException dbEx when dbEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505" 
                 => StatusCodes.Status409Conflict, // Unique constraint violation fallback
@@ -47,6 +48,9 @@ public class GlobalExceptionHandler : IExceptionHandler
             InvalidJobStatusException       => StatusCodes.Status400BadRequest,
             InvalidStatusTransitionException => StatusCodes.Status400BadRequest,
             ListingClosedException          => StatusCodes.Status400BadRequest, 
+
+            DbUpdateException dbEx when dbEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23503" 
+            => StatusCodes.Status404NotFound,
 
             
             _ => StatusCodes.Status500InternalServerError

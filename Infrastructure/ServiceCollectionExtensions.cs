@@ -7,6 +7,12 @@ namespace CareerHub.Api.Extensions;
 public static class ServiceExtensions
 {
 
+    public static IServiceCollection AddAuthFeatures(this IServiceCollection services)
+        {
+            services.AddScoped<IAuthService, AuthService>(); 
+            return services;
+        }
+
     //Applicant Features
     public static IServiceCollection AddApplicantFeatures(this IServiceCollection services)
     {

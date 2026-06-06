@@ -47,6 +47,7 @@ try
     });
 
     //Scalar configuration
+    builder.Services.AddAuthFeatures();
     builder.Services.AddApplicantFeatures();
     builder.Services.AddJobFeatures();
     builder.Services.AddCompanyFeatures();

@@ -1,69 +1,75 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using CareerHub.Api.Models; // Tells file to look inside the Models folder
-using CareerHub.Api.Enums;
-using CareerHub.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
+using CareerHub.Api.Repositories; 
+using CareerHub.Api.Exceptions;
 
-namespace CareerHub.Api.Services;//file lives in services layer of project
+namespace CareerHub.Api.Services;
 
-public class JobService(CareerHubDbContext context) : IJobService
+public class JobService : IJobService
 {
+    private readonly IJobListingRepository _repo;
 
-    private readonly CareerHubDbContext _context = context;
+    public JobService(IJobListingRepository repo)
+    {
+        _repo = repo;
+    }
 
-    //Get all the jobs
     public async Task<IEnumerable<JobResponse>> GetAllJobsAsync()
     {
-        return await _context.JobListings
-            .AsNoTracking()
-            .Select(j => new JobResponse
-            {
-                Id = j.Id,
-                Title = j.Title,
-                Location = j.Location,
-                Description = j.Description,
-                Type = j.Type,
-                PostedAt = j.PostedAt,
-                IsActive = j.IsActive,
-                Company = j.Company.Name,
-                ApplicationCount = j.Applications.Count() 
-            })
-            .ToListAsync();
+        var jobs = await _repo.GetActiveListingsWithCompanyAsync();
+
+        var response = new List<JobResponse>();
+    
+    foreach (var job in jobs)
+    {
+        response.Add(new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            
+            Company = job.Company?.Name ?? "Unknown" 
+        });
+    }
+    
+    return response;
     }
 
-    //Get the job by ID
     public async Task<JobResponse?> GetJobByIdAsync(Guid id)
-{
-    
-    return await _context.JobListings
-        .AsNoTracking()
-        .Where(j => j.Id == id)
-        .Select(j => new JobResponse
+    {
+        var job = await _repo.GetByIdAsync(id);
+        if (job == null) return null;
+
+        return new JobResponse
         {
-            Id = j.Id,
-            Title = j.Title,
-            Description = j.Description,
-            Location = j.Location,
-            Type = j.Type,
-            PostedAt = j.PostedAt,
-            IsActive = j.IsActive,
-            Company = j.Company.Name // Map the navigation property safely
-        })
-        .FirstOrDefaultAsync();
-}
-    //Check for duplications
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown"
+        };
+    }
+
+    
     public async Task<bool> ExistsAsync(string title, Guid companyId)
     {
-        return await _context.JobListings.AnyAsync(j => j.Title == title && j.CompanyId == companyId);
+        // Delegate the database check entirely to the repository layer
+        return await _repo.DoesListingExistAsync(title, companyId);
     }
 
-    //Create a Job
     public async Task<JobResponse> CreateJobAsync(CreateJobRequest request)
     {
+        // Use the check right here to enforce your duplicate business rule!
+        var duplicate = await _repo.DoesListingExistAsync(request.Title, request.CompanyId);
+        if (duplicate) throw new DuplicateJobListingException(request.Title);
+
         var newJob = new JobListing
         {
             Id = Guid.NewGuid(),
@@ -76,8 +82,7 @@ public class JobService(CareerHubDbContext context) : IJobService
             IsActive = true            
         };
 
-        _context.JobListings.Add(newJob);
-        await _context.SaveChangesAsync();
+        await _repo.AddAsync(newJob);
 
         return new JobResponse 
         {
@@ -91,22 +96,23 @@ public class JobService(CareerHubDbContext context) : IJobService
         };
     }
 
-    //Update Jobs
     public async Task<JobResponse?> UpdateJobAsync(Guid id, UpdateJobRequest request)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _repo.GetByIdAsync(id);
         if (job == null) return null;
 
+        if (job.CompanyId != request.CompanyId)
+        {
+            throw new UnauthorizedAccessException("This listing can only be updated by the company that owns it.");
+        }
+
         job.Title = request.Title;
-        job.CompanyId = request.CompanyId;
         job.Location = request.Location;
         job.Description = request.Description;
         job.Type = request.Type;
 
-        await _context.SaveChangesAsync();
+        await _repo.UpdateAsync(job);
 
-
-        // Centralized mapping helper to map Domain Models safely to public Response Contracts
         return new JobResponse 
         {
             Id = job.Id,
@@ -118,14 +124,43 @@ public class JobService(CareerHubDbContext context) : IJobService
             IsActive = job.IsActive
         };
     }
-    //Delete Job
+
     public async Task<bool> DeleteJobAsync(Guid id)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _repo.GetByIdAsync(id);
         if (job == null) return false;
 
-        _context.JobListings.Remove(job);
-        await _context.SaveChangesAsync();
+        await _repo.DeleteAsync(job);
         return true;
+    }
+
+    public async Task<IEnumerable<JobResponse>> SearchJobsAsync(string searchTerm)
+    {
+        var jobs = await _repo.SearchAsync(searchTerm);
+
+        // Map domain models to JobResponse
+        return jobs.Select(j => new JobResponse
+        {
+            Id = j.Id,
+            Title = j.Title,
+            Description = j.Description,
+            Location = j.Location,
+            Type = j.Type,
+            PostedAt = j.PostedAt,
+            ExpiresAt = j.ExpiresAt,
+            CompanyId = j.CompanyId
+        });
+    }
+
+    public IAsyncEnumerable<JobListing> GetCompanyJobsCompiledAsync(Guid companyId)
+    {
+        // Straight execution delegation down into your pre-compiled expression tree field
+        return _repo.GetListingsByCompanyCompiled(companyId);
+    }
+
+    public async Task<IEnumerable<JobListingStatsResponse>> GetCompanyApplicationStatsAsync(Guid companyId)
+    {
+        // Executes your window-function analytic report safely mapped to its response record
+        return await _repo.GetApplicationStatsAsync(companyId);
     }
 }

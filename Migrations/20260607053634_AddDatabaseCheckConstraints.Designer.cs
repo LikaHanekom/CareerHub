@@ -3,18 +3,20 @@ using System;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using NpgsqlTypes;
 
 #nullable disable
 
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    partial class CareerHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607053634_AddDatabaseCheckConstraints")]
+    partial class AddDatabaseCheckConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,11 +82,7 @@ namespace CareerHub.Api.Migrations
 
                     b.HasKey("JobListingId", "ApplicantId");
 
-                    b.HasIndex("JobListingId")
-                        .HasDatabaseName("ix_applications_job_listing_id");
-
-                    b.HasIndex("ApplicantId", "JobListingId")
-                        .HasDatabaseName("ix_applications_applicant_id_job_listing_id");
+                    b.HasIndex("ApplicantId");
 
                     b.ToTable("applications", null, t =>
                         {
@@ -178,11 +176,6 @@ namespace CareerHub.Api.Migrations
                     b.Property<decimal?>("SalaryMin")
                         .HasColumnType("numeric");
 
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasComputedColumnSql("to_tsvector('english', coalesce(\"Title\", '') || ' ' || coalesce(\"Description\", ''))", true);
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -193,16 +186,7 @@ namespace CareerHub.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SearchVector")
-                        .HasDatabaseName("ix_job_listings_search_vector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
-
-                    b.HasIndex("CompanyId", "IsActive")
-                        .HasDatabaseName("ix_job_listings_company_id_status");
-
-                    b.HasIndex("IsActive", "ExpiresAt")
-                        .HasDatabaseName("ix_job_listings_status_expires_at");
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("Title", "CompanyId")
                         .IsUnique();

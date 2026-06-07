@@ -24,19 +24,35 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         var statusCode = exception switch
         {
-
+            
+            //database
             DbUpdateException dbEx when dbEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505" 
-            => StatusCodes.Status409Conflict, // 23505 = Unique Violation (e.g., Company name already exists)
+                => StatusCodes.Status409Conflict, // Unique constraint violation fallback
 
             DbUpdateException dbEx when dbEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23502" 
-            => StatusCodes.Status400BadRequest, 
-            JobNotFoundException => StatusCodes.Status404NotFound,
-            CompanyNotFoundException => StatusCodes.Status404NotFound,
-            ApplicantNotFoundException => StatusCodes.Status404NotFound,
+                => StatusCodes.Status400BadRequest, // Not-null constraint violation fallback
+
+            // 404 NOT FOUND
+            JobNotFoundException         => StatusCodes.Status404NotFound,
+            CompanyNotFoundException     => StatusCodes.Status404NotFound,
+            ApplicantNotFoundException   => StatusCodes.Status404NotFound,
+            ApplicationNotFoundException => StatusCodes.Status404NotFound,
+
+            // 409 CONFLICT 
             DuplicateJobListingException => StatusCodes.Status409Conflict,
-            DuplicateCompanyException => StatusCodes.Status409Conflict,
-            DuplicateApplicantException => StatusCodes.Status409Conflict,
-            InvalidJobStatusException => StatusCodes.Status400BadRequest,
+            DuplicateCompanyException    => StatusCodes.Status409Conflict,
+            DuplicateApplicantException  => StatusCodes.Status409Conflict,
+            DuplicateApplicationException => StatusCodes.Status409Conflict, 
+
+            //  400 BAD REQUEST 
+            InvalidJobStatusException       => StatusCodes.Status400BadRequest,
+            InvalidStatusTransitionException => StatusCodes.Status400BadRequest,
+            ListingClosedException          => StatusCodes.Status400BadRequest, 
+
+            DbUpdateException dbEx when dbEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23503" 
+            => StatusCodes.Status404NotFound,
+
+            
             _ => StatusCodes.Status500InternalServerError
         };
 

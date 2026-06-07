@@ -16,6 +16,10 @@ public class JobListing
 
     public DateTime PostedAt {get; set;} = DateTime.UtcNow;
 
+    public decimal? SalaryMin { get; set; } 
+    public decimal? SalaryMax { get; set; } 
+    public DateTime? ExpiresAt { get; set; }
+
     public bool IsActive {get; set;}
 
     public ICollection<Application> Applications { get; set; } = new List<Application>();//establish other side of relationship

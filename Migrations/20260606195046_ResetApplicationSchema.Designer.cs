@@ -3,18 +3,20 @@ using System;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using NpgsqlTypes;
 
 #nullable disable
 
 namespace CareerHub.Api.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    partial class CareerHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606195046_ResetApplicationSchema")]
+    partial class ResetApplicationSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,16 +82,9 @@ namespace CareerHub.Api.Migrations
 
                     b.HasKey("JobListingId", "ApplicantId");
 
-                    b.HasIndex("JobListingId")
-                        .HasDatabaseName("ix_applications_job_listing_id");
+                    b.HasIndex("ApplicantId");
 
-                    b.HasIndex("ApplicantId", "JobListingId")
-                        .HasDatabaseName("ix_applications_applicant_id_job_listing_id");
-
-                    b.ToTable("applications", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_applications_submitted_at_no_future", "\"SubmittedAt\" <= CURRENT_TIMESTAMP");
-                        });
+                    b.ToTable("Applications");
                 });
 
             modelBuilder.Entity("CareerHub.Api.Models.Company", b =>
@@ -158,9 +153,6 @@ namespace CareerHub.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -172,17 +164,6 @@ namespace CareerHub.Api.Migrations
                     b.Property<DateTime>("PostedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal?>("SalaryMax")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal?>("SalaryMin")
-                        .HasColumnType("numeric");
-
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasComputedColumnSql("to_tsvector('english', coalesce(\"Title\", '') || ' ' || coalesce(\"Description\", ''))", true);
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -193,26 +174,12 @@ namespace CareerHub.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SearchVector")
-                        .HasDatabaseName("ix_job_listings_search_vector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
-
-                    b.HasIndex("CompanyId", "IsActive")
-                        .HasDatabaseName("ix_job_listings_company_id_status");
-
-                    b.HasIndex("IsActive", "ExpiresAt")
-                        .HasDatabaseName("ix_job_listings_status_expires_at");
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("Title", "CompanyId")
                         .IsUnique();
 
-                    b.ToTable("job_listings", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_job_listings_expiry_date", "\"ExpiresAt\" IS NULL OR \"ExpiresAt\" > \"PostedAt\"");
-
-                            t.HasCheckConstraint("ck_job_listings_salary_range", "(\"SalaryMin\" IS NULL OR \"SalaryMin\" > 0) AND (\"SalaryMin\" IS NULL OR \"SalaryMax\" IS NULL OR \"SalaryMax\" > \"SalaryMin\")");
-                        });
+                    b.ToTable("job_listings", (string)null);
 
                     b.HasData(
                         new

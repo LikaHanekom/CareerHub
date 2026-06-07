@@ -1,9 +1,11 @@
-namespace CareerHub.Api.Exceptions;
-
-public class DuplicateJobListingException : Exception
+namespace CareerHub.Api.Exceptions
 {
-    public DuplicateJobListingException(string company, string title)
-        : base($"A job listing for '{title}' at '{company}' already exists.")
+    public class DuplicateJobListingException : Exception
     {
+        
+        public DuplicateJobListingException(string title) 
+            : base($"A job listing with the title '{title}' already exists in this company.")
+        {
+        }
     }
 }

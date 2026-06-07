@@ -1,44 +1,40 @@
-using CareerHub.Api.Data;
-using CareerHub.Api.Models;
-using CareerHub.Api.DTOs;       
-using CareerHub.Api.Exceptions; 
-using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using CareerHub.Api.DTOs;        
+using CareerHub.Api.Models;      
+using CareerHub.Api.Repositories; 
+using CareerHub.Api.Exceptions;   
 
 namespace CareerHub.Api.Services
 {
     public class ApplicantService : IApplicantService
     {
-        private readonly CareerHubDbContext _context;
+        private readonly IApplicantRepository _applicantRepo;
 
-        public ApplicantService(CareerHubDbContext context)
+        public ApplicantService(IApplicantRepository applicantRepo)
         {
-            _context = context;
+            _applicantRepo = applicantRepo;
         }
 
         public async Task<IEnumerable<Applicant>> GetAllApplicantsAsync()
         {
-            return await _context.Applicants.ToListAsync();
+            return await _applicantRepo.GetAllApplicantsAsync();
         }
 
         public async Task<Applicant?> GetApplicantByIdAsync(Guid id)
         {
-            // Includes their applications and the related job listings so they can see their dashboard history!
-            return await _context.Applicants
-                .Include(a => a.Applications)
-                .ThenInclude(ap => ap.JobListing)
-                .FirstOrDefaultAsync(a => a.Id == id);
+            return await _applicantRepo.GetApplicantByIdAsync(id);
         }
 
-        public async Task<Applicant> CreateApplicantAsync(CreateApplicantDto dto)
+        public async Task<Applicant> CreateApplicantAsync(CreateApplicant dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email))
             {
                 throw new ArgumentException("Email address cannot be empty.");
             }
 
-            // Duplicate Check
-            var exists = await _context.Applicants
-                .AnyAsync(a => a.Email != null && a.Email.ToLower() == dto.Email.ToLower());
+            var exists = await _applicantRepo.DoesApplicantExistByEmailAsync(dto.Email);
 
             if (exists)
             {
@@ -48,14 +44,18 @@ namespace CareerHub.Api.Services
             var applicant = new Applicant
             {
                 Id = Guid.NewGuid(), 
-                FullName = dto.FullName,
-                Email = dto.Email,
-                Applications = new List<Application>()
+                FullName = dto.FullName, 
+                Email = dto.Email
             };
 
-            _context.Applicants.Add(applicant);
-            await _context.SaveChangesAsync();
+            await _applicantRepo.CreateApplicantAsync(applicant);
+            
             return applicant;
+        }
+
+        public async Task<bool> DoesApplicantExistByEmailAsync(string email)
+        {
+            return await _applicantRepo.DoesApplicantExistByEmailAsync(email);
         }
     }
 }

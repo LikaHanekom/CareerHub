@@ -166,3 +166,214 @@ This N+ 1 problem can deceive developers as they perform good on small datasets,
 With change tracking, EF core is tracking each object that is retrieved and maintains a single snapshot of the entity, which in turn allows the context to automatically detect changes. On the other hand without change tracking EF core does not maintain a snapshot, which reduces memory usage and CPU overhead. This happens due to the context not needing to evaluate the snapshots with previous ones. 
 
 If you treat a photo (NoTracking) like a live document (Tracking), you'll make changes that never actually get saved to the database, and the system won't warn you.
+
+ ## Assignment 2.3:
+ **Boundary Decision**
+ I'm choosing a One Repository per Entity approach, for example, IJobListingRepository, IApplicantRepository and IApplicationRepository. When the ApplicationService need to check if JobListings exists, it will inject IJobListingRepository alongside its own repository. This will ensure the clean seperation of concerns
+
+  **Return Types**
+  Returning IQueryable<T> fro the repository layer breaks abstraction as it leaves the database execution defered. It forces the Service layer to import Misrosoft.EntityFrameworkCore to resolve. ToListAsyc() or FirstOrDefaultAsync(). This completely defeats the purpose of the repository layer.
+
+ **Lifetime Choices**
+ CareerHubContext: should be scoped, otherwise it could cause multiple parallel API requests to run that will cross threads on the same context instance, which will cause runtime crashes.
+
+ JobListingService: Scoped: to match the request pipeline scope
+
+ ApplicationRepository: Scoped: it neess to be injected into the Scoped Careerhub.
+
+ ApplicationStatusCache: Singleton: Hardcoded rules that won't change based in database transactions.
+
+  **Status Transitions**
+  The service layer should enforce this. Controllers cannot own this as background and other entrypoints might update statusees outside of HTTP. Repositories jobs are data access and not to dictate the core corporate workflow behavior. Therefore they should not own it.
+
+
+  **Question 5: Deliberate crash**
+  ***Observation of Error***
+  I deliberately changed IApplicantService from a Scoped to a Singleton. IApplicantRepository I left as Scoped lifetime. When I tried running the application, it immediately refused to boot up and threw the following error: 
+
+  System.AggregateException: Some services are not able to be constructed (Error while validating the service descriptor 'ServiceType: CareerHub.Api.Services.IApplicantService Lifetime: Singleton ImplementationType: CareerHub.Api.Services.ApplicantService': Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.)
+ ---> System.InvalidOperationException: Error while validating the service descriptor 'ServiceType: CareerHub.Api.Services.IApplicantService Lifetime: Singleton ImplementationType: CareerHub.Api.Services.ApplicantService': Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.
+ ---> System.InvalidOperationException: Cannot consume scoped service 'CareerHub.Api.Repositories.IApplicantRepository' from singleton 'CareerHub.Api.Services.IApplicantService'.
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitCallSite(ServiceCallSite callSite, CallSiteValidatorState argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitConstructor(ConstructorCallSite constructorCallSite, CallSiteValidatorState state)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteValidator.VisitCallSite(ServiceCallSite callSite, CallSiteValidatorState argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.ValidateService(ServiceDescriptor descriptor)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider..ctor(ICollection`1 serviceDescriptors, ServiceProviderOptions options)
+   at Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(IServiceCollection services, ServiceProviderOptions options)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\alika\CareerHub.Api\Program.cs:line 96
+
+***Fix for the Error***
+I was able to resolve the error by changing the AddSingleton to AddScoped. The service lifetime needs to match their underlying dependencies and therefore the DI engine was able to start up once their lifetimes correlated.
+
+**Repository Design Decision**
+I went with the concept of domain aggregation. I established explicit boundaries for the data access layer. For example: IApplicationRepository - handles all applicant applications, state transition and lifecycle updates. IJobListingRepository - manages operational queries specifically focussing on open/closed job postings and listing details.
+
+#### The Choice Regarding ICompanyRepository
+I explicitly chose to implement a dedicated ICompanyRepository alongside the other domain repositories. This boundary was drawn because:
+- Strict Separation of Concerns: Giving Company its own repository ensures that company-specific data mutations (such as managing corporate profiles or onboarding new clients) are completely isolated from job listings and applications.
+- Domain Autonomy:A Company represents a core root aggregate within the CareerHub system. By provisioning a distinct repository layer, this prevents the database query methods from becoming bloated or mixed with unrelated listing logic, making the data access layer highly maintainable and clean.
+
+### What the Controller Lost
+During the architectural cleanup, the controllers were stripped of all heavy logic, leaving them strictly to perform three basic infrastructure tasks: Parse the HTTP Request $\rightarrow$ Call the Service Layer $\rightarrow$ Return the HTTP Status. 
+
+The following logic pieces were stripped out of the controllers and re-homed:
+
+| Logic Extracted | New Layer Location | Architectural Justification |
+| :--- | :--- | :--- |
+| **Business & Rule Validation** *(e.g., checking if a listing is closed or an application is a duplicate)* | **Service Layer (`ApplicationService`)** | The controller should never dictate domain-specific workflows. Moving this here isolates business integrity from our HTTP framework. |
+| **State Machine Verification** *(Validating status transitions)* | **Domain / Engine Layer (`ApplicationStatusValidator`)** | Status transition sequencing is an internal system rule. It must live in a centralized, framework-agnostic space. |
+| **Manual Data Mapping / Assignment** *(Instantiating domain models)* | **Service Layer / DTO Layer** | Controllers shouldn't manually bind internal property parameters; abstracting this keeps API schemas completely decoupled from DB shapes. |
+| **Try-Catch Blocks & HTTP Error Mapping** | **Middleware Layer (`GlobalExceptionHandler`)** | Eliminates cluttered defensive code blocks across action methods. Centralizing error handling ensures a unified API error shape. |
+
+
+
+### 3. Status Transition Design
+
+To enforce valid application lifecycle states without introducing messy procedural code pathways, the work flow rules were treated as a Directed Graph Map. 
+
+Instead of writing complex, nested if/else statements or cascading switch blocks that are highly prone to edge-case bugs, the rules are configured entirely as data inside a static, read-only HashSet<(ApplicationStatus From, ApplicationStatus To)> collection container.
+
+#### One-Line Changes
+Because the evaluation logic uses a highly optimized, constant-time HashSet.Contains() lookup method, the validation engine itself never needs to change when a state rule evolves. 
+
+For example, if business requirements change tomorrow to allow an application to move directly from `Offered` $\rightarrow$ `Accepted`, a developer only needs to modify exactly one line of code inside our central configuration file:
+
+### 4. Lifetime Misconfiguration
+The way I understand this is that a Singleton is created once when the app opens and lives forever, a scoped on the other hand is created freshly for every HTTP request and then destoyed right after. If the Scoped repository is inside a singleton the service the singleton will capture it and force it to live forever, resulting in the system crashing immediately on startup.
+
+DbContext is not thread safe, and when a singleton holds a scoped, when different users try hitting the API at the same time they will all end up sharing the same database tracking context. This will lead to data corruption, crash queries and mixed up user sessions.
+
+The database context will be locked in memory forever, instead of being cleaned up. This will casue the apps data to keep climbing and accumilating until the entire server crashes.
+
+
+## Assignment 2.4 Decisions:
+### 1. Constraint Placement
+Why- Service-layer validation runs inside your applications memory. It can however, be completely bypassed if a developer runs a direct SQL script in pgAdmin during a production incident, a raw data migration script runs with bad data, or a bug is introduced in a new API service variant
+
+Consequently - Without a database-level check constraint. PostgreSQL will blindly save a listing where SalaryMin is greater than SalaryMax. This corrupts the data integrity, break public job-board filtering, and causes your frontend to display invalid salary ranges to applicants.
+
+### 2. Index Column Ordering
+PostgreSQL uses B-Tree composite indexes from left to right. Think of it like a telephone book sorted by Last Name, then First Name.
+
+Example: 
+- Index 1 (CompanyId, Status): Put CompanyId first. It is highly selective (it instantly narrows down thousands of rows to just one company's rows). Then Status filters down the remaining tiny subset. 
+
+- Index 2 (Status, ExpiresAt): Put Status first. Status = 'Active' dramatically slices your table size down to only open listings. PostgreSQL can then instantly traverse the ExpiresAt values for that active subset. If a query filters only on ExpiresAt (the non-leftmost column), PostgreSQL will bypass the index entirely and default to a slow sequential table scan.
+
+
+### 3. Identify Hot Paths
+A hot path is a repository method executed constantly under normal user activity.
+Ways of Identifying Hot paths:
+- HasAppliedAsync: Called every single time an applicant opens a job detail page or clicks "Apply". High frequency matters here because if 1,000 users are browsing listings, this query fires continuously. Compiled queries eliminate the overhead of EF Core parsing the LINQ expression into SQL every split second.
+
+- GetActiveListingsAsync: Called on every single page load of the public job board. Because it is the entry point of the entire application, caching its query execution plan saves massive CPU cycles on your database server.
+
+### 4. FromSql Scope
+The Limitation: EF Core's LINQ translator cannot translate advanced SQL window functions like RANK() OVER (PARTITION BY ... ORDER BY ...).
+
+The PostgreSQL Feature: It requires PostgreSQL's native RANK() window function combined with conditional filtering syntax (COUNT(*) FILTER (WHERE...)). Writing it in raw SQL via Database.SqlQuery<T> is the only way to execute this efficiently on the database side without pulling thousands of rows into memory to sort them via C#.
+
+## Part 2 -Database Check Constraints Verification Guide
+
+This project utilizes PostgreSQL check constraints at the database level to ensure data integrity for salary structures and listing dates. To test and verify these rules manually, follow the guide below to interface directly with the database container.
+
+### Prerequisites
+Ensure your Docker desktop application is running and the database container is active.
+
+### Execution Steps
+
+1. **Log into the PostgreSQL Container**
+   Open your terminal or PowerShell and access the `psql` interface inside the running container:
+```powershell
+   docker exec -it careerhub-postgres psql -U postgres
+```
+2. **Connect to the Application Database**
+``plaintext``
+   \c CareerHub
+
+3. **Test Case 1: Expiry Date Constraint (ck_job_listings_expiry_date)**
+INSERT INTO job_listings ("Id", "Title", "Description", "Location", "CompanyId", "Type", "IsActive", "SalaryMin", "SalaryMax", "PostedAt", "ExpiresAt") 
+VALUES (gen_random_uuid(), 'Invalid Date Job', 'Testing constraints', 'Remote', '91111111-1111-1111-1111-111111111111', 0, true, 40000, 50000, now(), now() - interval '1 day');
+
+4. **Test Case 2: Salary Range Constraint (ck_job_listings_salary_range)**
+INSERT INTO job_listings ("Id", "Title", "Description", "Location", "CompanyId", "Type", "IsActive", "SalaryMin", "SalaryMax", "PostedAt", "ExpiresAt") 
+VALUES (gen_random_uuid(), 'Invalid Salary Job', 'Testing constraints', 'Remote', '91111111-1111-1111-1111-111111111111', 0, true, 50000, 40000, now(), now() + interval '10 days');
+
+5. **Clean Up**
+``plaintext``
+      \q
+
+## EXPLAIN ANALYZE Findings
+***Before Optimization (Without Index)***
+```text
+ Seq Scan on job_listings  (cost=0.00..15.22 rows=54 width=366) (actual time=0.030..0.104 rows=105.00 loops=1)
+   Filter: ("IsActive" AND ("ExpiresAt" > now()))
+   Rows Removed by Filter: 110
+   Buffers: shared hit=12
+ Planning:
+   Buffers: shared hit=93
+ Planning Time: 0.805 ms
+ Execution Time: 0.135 ms
+(8 rows)
+
+(END)
+```
+
+***After Optimization(With Composite Index)***
+```text
+ Bitmap Heap Scan on job_listings  (cost=4.69..17.49 rows=53 width=366) (actual time=0.054..0.081 rows=105.00 loops=1)
+   Recheck Cond: ("IsActive" AND ("ExpiresAt" > now()))
+   Heap Blocks: exact=12
+   Buffers: shared hit=13
+   ->  Bitmap Index Scan on ix_job_listings_status_expires_at  (cost=0.00..4.68 rows=53 width=0) (actual time=0.032..0.032 rows=129.00 loops=1)
+         Index Cond: (("IsActive" = true) AND ("ExpiresAt" > now()))
+         Index Searches: 1
+         Buffers: shared hit=1
+ Planning Time: 0.192 ms
+ Execution Time: 1.979 ms
+(10 rows)
+```
+
+### 5. FromSql Parameterization Proof
+
+Why String Interpolation inside SqlQuery<T> is Safe:** Entity Framework Core intercepts the interpolated string at compile-time and automatically extracts the variables into true database command parameters (`FormattableString`), ensuring that user inputs are handled strictly as isolated values rather than executable database syntax.
+
+Why string.Format or + Concatenation is Unsafe:Pre-building the string using raw concatenation or `string.Format` physically flattens the input parameters directly into the raw text before it ever reaches EF Core, enabling malicious actors to inject arbitrary SQL control characters that permanently alter the command's structural logic.
+
+## Connection Pool Configurations & Mathematical Scaling
+
+To ensure high-availability and prevent resource exhaustion under heavy traffic loads, I configured connection pooling boundaries inside our database infrastructure layer.
+
+### 1. Scaling Architecture Calculation
+
+Our maximum connection pool parameters were calculated using the following server capacity boundaries:
+
+Total PostgreSQL Server Capacity: $100$ maximum concurrent connections.
+Superuser/Telemetry Reservation: $10$ connections strictly reserved for administrators and background telemetry monitoring.
+Available Application Headroom: $100 - 10 = 90$ total connections available for application servers.
+
+Because the production web layer scales out symmetrically across 3 active, live instances, the remaining connection overhead is divided equally among them to prevent instance conflict:
+
+$$90 \div 3 = 30 \text{ connections per instance}$$
+
+Therefore, our production connection string explicitly defines `Maximum Pool Size=30`.
+
+#### C. Multi-Environment Pool Layout Proof
+
+To ensure our application behaves predictably across distinct operational spaces, the connection pool configuration is split into two distinct tiers:
+
+
+### 2. Runtime Behavior Under Full Pool Exhaustion
+
+When an application instance experiences a traffic spike and all 30 pool connections are actively leased out, subsequent database queries undergo the following lifecycle:
+
+1. Queueing (Blocking State): The incoming request does not instantly fail. It enters a synchronous blocking wait queue, waiting for an executing thread to finish its operation and yield its connection back to the pool manager.
+2. Observable Symptom: From the end-user's perspective, the application experiences a severe latency spike. The API request will appear to spin endlessly without returning data.
+3. Timeout Failure: If no connection is freed within the default timeout threshold window, the request drops out of the queue and throws a `Npgsql.PostgresException: Connection pool exhaustion timeout`. The API handles this exception by returning an HTTP 500 Internal Server Error to the client
+

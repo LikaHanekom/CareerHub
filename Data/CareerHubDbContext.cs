@@ -24,50 +24,63 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<JobListing>(entity =>
         {
-            entity.ToTable("job_listings");
+            entity.ToTable("job_listings", t =>
+            {
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "ck_job_listings_salary_range",
+                    "(\"SalaryMin\" IS NULL OR \"SalaryMin\" > 0) AND " +
+                    "(\"SalaryMin\" IS NULL OR \"SalaryMax\" IS NULL OR \"SalaryMax\" > \"SalaryMin\")"
+                ));
+
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "ck_job_listings_expiry_date",
+                    "\"ExpiresAt\" IS NULL OR \"ExpiresAt\" > \"PostedAt\""
+                ));
+            });
+
+            
 
             entity.HasKey(j => j.Id);
-
             entity.Property(j => j.Id).ValueGeneratedNever();
-
             entity.Property(j => j.Title).IsRequired().HasMaxLength(100);
-
             entity.Property(j => j.Description).IsRequired().HasMaxLength(1000);
-
             entity.Property(j => j.Location).IsRequired().HasMaxLength(100);
 
+            //Composite Indec for public active job board query
+            entity.HasIndex(j => new { j.IsActive, j.ExpiresAt })
+              .HasDatabaseName("ix_job_listings_status_expires_at");
+
+            //Composite index for Employer-scoped dashboard queries
+            entity.HasIndex(j => new { j.CompanyId, j.IsActive })
+              .HasDatabaseName("ix_job_listings_company_id_status");
+            
+            //Combine title and description for full text search
+            entity.Property<NpgsqlTypes.NpgsqlTsVector>("SearchVector")
+              .HasComputedColumnSql("to_tsvector('english', coalesce(\"Title\", '') || ' ' || coalesce(\"Description\", ''))", stored: true);
+            
+            //GIN index over the search Vector
+            entity.HasIndex("SearchVector")
+              .HasMethod("GIN")
+              .HasDatabaseName("ix_job_listings_search_vector");
+
+            
             entity.HasIndex(j => new
             {
                 j.Title,
                 j.CompanyId
             })
             .IsUnique();
-
+            
             //Company Relationship
-            modelBuilder.Entity<JobListing>() //Targets Joblistings classs: I want to configure the joblistings database mapping rules
-            .HasOne(j => j.Company) //Tells EF every Joblisting is connected to one company
-            .WithMany(c => c.JobListings)// Tells EF on the other side 1 Company can own many job listings
-            .HasForeignKey(j => j.CompanyId) 
-            .OnDelete(DeleteBehavior.Restrict);//if you try to delete company that has active joblistigns the delete will be restricted
-
-            //Application Relationships
-            modelBuilder.Entity<Application>()
-            .HasOne(ap => ap.JobListing)
-            .WithMany(j => j.Applications)
-            .HasForeignKey(ap => ap.JobListingId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Application>()
-            .HasOne(ap => ap.Applicant)
-            .WithMany(a => a.Applications)
-            .HasForeignKey(ap => ap.ApplicantId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-
+            entity.HasOne(j => j.Company) //Tells EF every Joblisting is connected to one company
+                .WithMany(c => c.JobListings)// Tells EF on the other side 1 Company can own many job listings
+                .HasForeignKey(j => j.CompanyId) 
+                .OnDelete(DeleteBehavior.Restrict);//if you try to delete company that has active joblistigns the delete will be restricted
         });
-
 
         modelBuilder.Entity<Company>(entity =>
         {
@@ -93,13 +106,43 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
             entity.HasIndex(a => a.Email).IsUnique();//HasIndex - tells EF to create database index on Email column in table
         });
 
-        //composite key
-        modelBuilder.Entity<Application>().HasKey(ap => new
+        modelBuilder.Entity<Application>(entity =>
         {
-            ap.JobListingId,
-            ap.ApplicantId
-        });
+            entity.ToTable("applications", t =>
+            {
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "ck_applications_submitted_at_no_future",
+                    "\"SubmittedAt\" <= CURRENT_TIMESTAMP"
+                ));
+            });
 
+            // Composite primary key configuration
+            entity.HasKey(ap => new
+            {
+                ap.JobListingId,
+                ap.ApplicantId
+            });
+
+            //INDEXES
+            // Index supporting rapid HasAppliedAsync check
+            entity.HasIndex(a => new { a.ApplicantId, a.JobListingId })
+                .HasDatabaseName("ix_applications_applicant_id_job_listing_id");
+
+            // Index supporting employer dashboards looking at listing applicants
+            entity.HasIndex(a => a.JobListingId)
+                .HasDatabaseName("ix_applications_job_listing_id");
+
+            //Application Relationships
+            entity.HasOne(ap => ap.JobListing)
+                .WithMany(j => j.Applications)
+                .HasForeignKey(ap => ap.JobListingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(ap => ap.Applicant)
+                .WithMany(a => a.Applications)
+                .HasForeignKey(ap => ap.ApplicantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         var c1 = Guid.Parse("75ba7d3e-2b50-4841-860e-cbfb4e54e4df"); // TechCorp
         var c2 = Guid.Parse("2d5d8e24-9b16-4d2a-89a1-fbf22d4f5c92"); // FinanceFlow
@@ -138,24 +181,21 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
             new Applicant { Id = applicantB, FullName = "Applicant B", Email = "applicantB@test.com" }
         );
     }
+}
 
-
-
-    public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CareerHubDbContext>
+public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CareerHubDbContext>
+{
+    public CareerHubDbContext CreateDbContext(string[] args)
     {
-        public CareerHubDbContext CreateDbContext(string[] args)
-        {
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.Development.json")
-                .Build();
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.Development.json")
+            .Build();
 
-            var optionsBuilder = new DbContextOptionsBuilder<CareerHubDbContext>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
-            optionsBuilder.UseNpgsql(connectionString);
+        var optionsBuilder = new DbContextOptionsBuilder<CareerHubDbContext>();
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        optionsBuilder.UseNpgsql(connectionString);
 
-            return new CareerHubDbContext(optionsBuilder.Options);
-        }
+        return new CareerHubDbContext(optionsBuilder.Options);
     }
-
 }

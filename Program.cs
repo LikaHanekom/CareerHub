@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using CareerHub.Api.Extensions;
+using CareerHub.Api.Infrastructure;
 
 // LoggerConfiguration
 Log.Logger = new LoggerConfiguration()
@@ -21,6 +22,8 @@ try
     Log.Information("Starting web application...");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddInfrastructureServices(builder.Configuration);
 
     // Serilog
     builder.Host.UseSerilog();
@@ -39,8 +42,21 @@ try
     // Scalar / OpenAPI configuration
     builder.Services.AddOpenApi();
 
+    // 1. Enforce strict build-time Dependency Injection validation
+    builder.Host.UseDefaultServiceProvider(options =>
+    {
+        options.ValidateScopes = true;       
+        options.ValidateOnBuild = true;     
+    });
+
     //Scalar configuration
-    builder.Services.AddApplicationServices();
+    builder.Services.AddAuthFeatures();
+    builder.Services.AddApplicantFeatures();
+    builder.Services.AddJobFeatures();
+    builder.Services.AddCompanyFeatures();
+    builder.Services.AddApplicationFeatures();
+
+    builder.Services.AddControllers();
 
     //Builder.config, tool to read configuration settings
     var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.

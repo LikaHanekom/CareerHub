@@ -1,36 +1,54 @@
-using CareerHub.Api.Data;
+using System;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Enums;
+using CareerHub.Api.Services;
 
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
-[Route("api/applications")]
-public class ApplicationController(CareerHubDbContext dbContext) : ControllerBase
+[Route("api/applications")] 
+public class ApplicationController(IApplicationService applicationService) : ControllerBase
 {
-    [HttpPost("apply")]
-    public async Task<IActionResult> ApplyForJob([FromBody] ApplicationRequest request)
-    {
-        // Check for duplicates
-        var alreadyApplied = await dbContext.Applications
-            .AnyAsync(a => a.JobListingId == request.JobListingId && a.ApplicantId == request.ApplicantId);
+    private readonly IApplicationService _applicationService = applicationService;
 
-        if (alreadyApplied)
+    // ── 1. SUBMIT AN APPLICATION 
+    [HttpPost("apply")]
+    public async Task<ActionResult<Application>> ApplyForJob([FromBody] ApplicationRequest request)
+    {
+        if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = "Applicant has already applied for this job." });
+            return BadRequest(ModelState);
         }
 
-        var application = new Application
-        {
-            JobListingId = request.JobListingId,
-            ApplicantId = request.ApplicantId,
-            SubmittedAt = DateTime.UtcNow 
-        };
+        // Submits application via service tier. Relies on middleware if duplicate exists.
+        var result = await _applicationService.SubmitApplicationAsync(request);
 
-        dbContext.Applications.Add(application);
-        await dbContext.SaveChangesAsync();
-        return StatusCode(201);
+        return StatusCode(201, result);
+    }
+
+    // ── 2. Update ──────
+    [HttpPut("status")]
+    public async Task<IActionResult> UpdateStatus(
+        [FromQuery] Guid applicantId, 
+        [FromQuery] Guid jobListingId, 
+        [FromQuery] ApplicationStatus newStatus) 
+    {
+        await _applicationService.UpdateStatusAsync(applicantId, jobListingId, newStatus);
+        return NoContent(); 
+    }
+
+    // ── 3.DELETE 
+    [HttpDelete("{applicationId:guid}/Cancelled")]
+    public async Task<IActionResult> WithdrawApplication(
+        Guid applicationId, 
+        [FromQuery] Guid requestingApplicantId)
+    {
+        // Service ensures the requesting applicant actually owns the application before removal
+        await _applicationService.WithdrawApplicationAsync(applicationId, requestingApplicantId);
+
+        return NoContent(); 
     }
 }

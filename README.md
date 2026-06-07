@@ -278,3 +278,33 @@ Ways of Identifying Hot paths:
 The Limitation: EF Core's LINQ translator cannot translate advanced SQL window functions like RANK() OVER (PARTITION BY ... ORDER BY ...).
 
 The PostgreSQL Feature: It requires PostgreSQL's native RANK() window function combined with conditional filtering syntax (COUNT(*) FILTER (WHERE...)). Writing it in raw SQL via Database.SqlQuery<T> is the only way to execute this efficiently on the database side without pulling thousands of rows into memory to sort them via C#.
+
+## Database Check Constraints Verification Guide
+
+This project utilizes PostgreSQL check constraints at the database level to ensure data integrity for salary structures and listing dates. To test and verify these rules manually, follow the guide below to interface directly with the database container.
+
+### Prerequisites
+Ensure your Docker desktop application is running and the database container is active.
+
+### Execution Steps
+
+1. **Log into the PostgreSQL Container**
+   Open your terminal or PowerShell and access the `psql` interface inside the running container:
+```powershell
+   docker exec -it careerhub-postgres psql -U postgres
+```
+2. **Connect to the Application Database**
+``plaintext``
+   \c CareerHub
+
+3. **Test Case 1: Expiry Date Constraint (ck_job_listings_expiry_date)**
+INSERT INTO job_listings ("Id", "Title", "Description", "Location", "CompanyId", "Type", "IsActive", "SalaryMin", "SalaryMax", "PostedAt", "ExpiresAt") 
+VALUES (gen_random_uuid(), 'Invalid Date Job', 'Testing constraints', 'Remote', '91111111-1111-1111-1111-111111111111', 0, true, 40000, 50000, now(), now() - interval '1 day');
+
+4. **Test Case 2: Salary Range Constraint (ck_job_listings_salary_range)**
+INSERT INTO job_listings ("Id", "Title", "Description", "Location", "CompanyId", "Type", "IsActive", "SalaryMin", "SalaryMax", "PostedAt", "ExpiresAt") 
+VALUES (gen_random_uuid(), 'Invalid Salary Job', 'Testing constraints', 'Remote', '91111111-1111-1111-1111-111111111111', 0, true, 50000, 40000, now(), now() + interval '10 days');
+
+5. **Clean Up**
+``plaintext``
+      \q

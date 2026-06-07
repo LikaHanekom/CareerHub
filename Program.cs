@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using CareerHub.Api.Extensions;
+using CareerHub.Api.Infrastructure;
 
 // LoggerConfiguration
 Log.Logger = new LoggerConfiguration()
@@ -21,6 +22,8 @@ try
     Log.Information("Starting web application...");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddInfrastructureServices(builder.Configuration);
 
     // Serilog
     builder.Host.UseSerilog();

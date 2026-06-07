@@ -8,6 +8,12 @@ public class ApplicationRepository : IApplicationRepository
 {
     private readonly CareerHubDbContext _context;
 
+    private static readonly Func<CareerHubDbContext, Guid, Guid, Task<Application?>> _compiledHasAppliedQuery =
+    EF.CompileAsyncQuery((CareerHubDbContext context, Guid applicantId, Guid jobListingId) =>
+        context.Applications
+            .AsNoTracking()
+            .FirstOrDefault(a => a.ApplicantId == applicantId && a.JobListingId == jobListingId));
+
     public ApplicationRepository(CareerHubDbContext context) => _context = context;
 
     public async Task<bool> HasApplicantAlreadyAppliedAsync(Guid applicantId, Guid jobListingId)
@@ -52,5 +58,13 @@ public class ApplicationRepository : IApplicationRepository
     {
         _context.Applications.Update(application);
         await _context.SaveChangesAsync();
+    }
+
+
+    // 2. Returns the rapid true/false check
+    public async Task<bool> HasAppliedCompiledAsync(Guid applicantId, Guid jobListingId)
+    {
+        var application = await _compiledHasAppliedQuery(_context, applicantId, jobListingId);
+        return application != null;
     }
 }

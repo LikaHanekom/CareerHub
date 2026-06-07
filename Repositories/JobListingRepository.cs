@@ -9,6 +9,12 @@ namespace CareerHub.Api.Repositories
     {
         private readonly CareerHubDbContext _context;
 
+        private static readonly Func<CareerHubDbContext, Guid, IAsyncEnumerable<JobListing>> _compiledCompanyJobsQuery =
+            EF.CompileAsyncQuery((CareerHubDbContext context, Guid companyId) =>
+                context.JobListings
+                    .AsNoTracking() 
+                    .Where(j => j.CompanyId == companyId));
+
         public JobListingRepository(CareerHubDbContext context)
         {
             _context = context;
@@ -91,6 +97,11 @@ namespace CareerHub.Api.Repositories
                 .Where(j => EF.Property<NpgsqlTypes.NpgsqlTsVector>(j, "SearchVector")
                     .Matches(EF.Functions.ToTsQuery("english", formattedQuery)))
                 .ToListAsync();
+        }
+
+        public IAsyncEnumerable<JobListing> GetListingsByCompanyCompiled(Guid companyId)
+        {
+            return _compiledCompanyJobsQuery(_context, companyId);
         }
     }
 }

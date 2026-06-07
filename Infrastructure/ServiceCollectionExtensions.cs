@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using CareerHub.Api.Services;
 using CareerHub.Api.Repositories;
+using CareerHub.Api.Infrastructure;
+using CareerHub.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CareerHub.Api.Extensions;
 
@@ -43,6 +46,23 @@ public static class ServiceExtensions
     {
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
         services.AddScoped<IApplicationService, ApplicationService>();
+        return services;
+    }
+
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        // 1. Register the interceptor as a stateless singleton
+        services.AddSingleton<SlowQueryInterceptor>();
+
+        // 2. Inject it into the DbContext options pipeline using the service provider (sp)
+        services.AddDbContext<CareerHubDbContext>((sp, options) =>
+        {
+            var interceptor = sp.GetRequiredService<SlowQueryInterceptor>();
+            
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+                   .AddInterceptors(interceptor);
+        });
+
         return services;
     }
 

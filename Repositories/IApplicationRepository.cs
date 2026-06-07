@@ -14,4 +14,5 @@ public interface IApplicationRepository
     
     Task UpdateAsync(Application application);
     Task<Application?> GetApplicationByIdAsync(Guid id);
+    Task<bool> HasAppliedCompiledAsync(Guid applicantId, Guid jobListingId);
 }

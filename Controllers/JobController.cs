@@ -84,4 +84,12 @@ public class JobController(IJobService jobService) : ControllerBase
 
         return NoContent(); 
     }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q)
+    {
+        // One call straight down to the service layer
+        var results = await _jobService.SearchJobsAsync(q);
+        return Ok(results);
+    }
 }

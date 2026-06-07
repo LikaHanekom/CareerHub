@@ -17,8 +17,10 @@ public class JobResponse
     // Optional raw numeric values used for mapping calculations
     public decimal? SalaryMin { get; set; }
     public decimal? SalaryMax { get; set; }
+    public Guid CompanyId { get; set; }
 
     public int ApplicationCount { get; set; }
+     public DateTime? ExpiresAt { get; set; }
 
     public List<ApplicationDetailResponse> Applications { get; set; } = new();
 

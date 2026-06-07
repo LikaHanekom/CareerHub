@@ -133,4 +133,22 @@ public class JobService : IJobService
         await _repo.DeleteAsync(job);
         return true;
     }
+
+    public async Task<IEnumerable<JobResponse>> SearchJobsAsync(string searchTerm)
+{
+    var jobs = await _repo.SearchAsync(searchTerm);
+
+    // Map your domain models to your JobResponse
+    return jobs.Select(j => new JobResponse
+    {
+        Id = j.Id,
+        Title = j.Title,
+        Description = j.Description,
+        Location = j.Location,
+        Type = j.Type,
+        PostedAt = j.PostedAt,
+        ExpiresAt = j.ExpiresAt,
+        CompanyId = j.CompanyId
+    });
+}
 }

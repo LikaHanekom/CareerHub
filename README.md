@@ -279,7 +279,7 @@ The Limitation: EF Core's LINQ translator cannot translate advanced SQL window f
 
 The PostgreSQL Feature: It requires PostgreSQL's native RANK() window function combined with conditional filtering syntax (COUNT(*) FILTER (WHERE...)). Writing it in raw SQL via Database.SqlQuery<T> is the only way to execute this efficiently on the database side without pulling thousands of rows into memory to sort them via C#.
 
-## Database Check Constraints Verification Guide
+## Part 2 -Database Check Constraints Verification Guide
 
 This project utilizes PostgreSQL check constraints at the database level to ensure data integrity for salary structures and listing dates. To test and verify these rules manually, follow the guide below to interface directly with the database container.
 
@@ -308,3 +308,35 @@ VALUES (gen_random_uuid(), 'Invalid Salary Job', 'Testing constraints', 'Remote'
 5. **Clean Up**
 ``plaintext``
       \q
+
+## EXPLAIN ANALYZE Findings
+***Before Optimization (Without Index)***
+```text
+ Seq Scan on job_listings  (cost=0.00..15.22 rows=54 width=366) (actual time=0.030..0.104 rows=105.00 loops=1)
+   Filter: ("IsActive" AND ("ExpiresAt" > now()))
+   Rows Removed by Filter: 110
+   Buffers: shared hit=12
+ Planning:
+   Buffers: shared hit=93
+ Planning Time: 0.805 ms
+ Execution Time: 0.135 ms
+(8 rows)
+
+(END)
+```
+
+***After Optimization(With Composite Index)***
+```text
+ Bitmap Heap Scan on job_listings  (cost=4.69..17.49 rows=53 width=366) (actual time=0.054..0.081 rows=105.00 loops=1)
+   Recheck Cond: ("IsActive" AND ("ExpiresAt" > now()))
+   Heap Blocks: exact=12
+   Buffers: shared hit=13
+   ->  Bitmap Index Scan on ix_job_listings_status_expires_at  (cost=0.00..4.68 rows=53 width=0) (actual time=0.032..0.032 rows=129.00 loops=1)
+         Index Cond: (("IsActive" = true) AND ("ExpiresAt" > now()))
+         Index Searches: 1
+         Buffers: shared hit=1
+ Planning Time: 0.192 ms
+ Execution Time: 1.979 ms
+(10 rows)
+```
+

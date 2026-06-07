@@ -25,4 +25,6 @@ public interface IJobService
 
     // Delete Job
     Task<bool> DeleteJobAsync(Guid id);
+
+    Task<IEnumerable<JobResponse>> SearchJobsAsync(string searchTerm);
 }

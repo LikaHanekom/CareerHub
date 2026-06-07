@@ -66,5 +66,31 @@ namespace CareerHub.Api.Repositories
             
             return job.IsActive; 
         }
+
+        public async Task<IEnumerable<JobListing>> SearchAsync(string searchTerm)
+        {
+            // If no search term is provided, default to returning all active, unexpired jobs
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return await _context.JobListings
+                    .AsNoTracking()
+                    .Include(j => j.Company)
+                    .Where(j => j.IsActive && (j.ExpiresAt == null || j.ExpiresAt > DateTime.UtcNow))
+                    .ToListAsync();
+            }
+
+            // Format the text for Postgres tsquery partial-matching
+            var formattedQuery = searchTerm.Trim().Replace(" ", " & ") + ":*";
+
+            return await _context.JobListings
+                .AsNoTracking()
+                .Include(j => j.Company) // Includes the company data just like your other methods
+                .Where(j => j.IsActive && (j.ExpiresAt == null || j.ExpiresAt > DateTime.UtcNow))
+                
+                // This links directly to the shadow property "SearchVector" and applies the GIN index
+                .Where(j => EF.Property<NpgsqlTypes.NpgsqlTsVector>(j, "SearchVector")
+                    .Matches(EF.Functions.ToTsQuery("english", formattedQuery)))
+                .ToListAsync();
+        }
     }
 }

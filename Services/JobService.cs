@@ -135,20 +135,32 @@ public class JobService : IJobService
     }
 
     public async Task<IEnumerable<JobResponse>> SearchJobsAsync(string searchTerm)
-{
-    var jobs = await _repo.SearchAsync(searchTerm);
-
-    // Map your domain models to your JobResponse
-    return jobs.Select(j => new JobResponse
     {
-        Id = j.Id,
-        Title = j.Title,
-        Description = j.Description,
-        Location = j.Location,
-        Type = j.Type,
-        PostedAt = j.PostedAt,
-        ExpiresAt = j.ExpiresAt,
-        CompanyId = j.CompanyId
-    });
-}
+        var jobs = await _repo.SearchAsync(searchTerm);
+
+        // Map domain models to JobResponse
+        return jobs.Select(j => new JobResponse
+        {
+            Id = j.Id,
+            Title = j.Title,
+            Description = j.Description,
+            Location = j.Location,
+            Type = j.Type,
+            PostedAt = j.PostedAt,
+            ExpiresAt = j.ExpiresAt,
+            CompanyId = j.CompanyId
+        });
+    }
+
+    public IAsyncEnumerable<JobListing> GetCompanyJobsCompiledAsync(Guid companyId)
+    {
+        // Straight execution delegation down into your pre-compiled expression tree field
+        return _repo.GetListingsByCompanyCompiled(companyId);
+    }
+
+    public async Task<IEnumerable<JobListingStatsResponse>> GetCompanyApplicationStatsAsync(Guid companyId)
+    {
+        // Executes your window-function analytic report safely mapped to its response record
+        return await _repo.GetApplicationStatsAsync(companyId);
+    }
 }

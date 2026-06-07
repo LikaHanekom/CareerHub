@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Exceptions;
 using CareerHub.Api.Services;
+using CareerHub.Api.Models;
+
 
 namespace CareerHub.Api.Controllers;
 
@@ -91,5 +93,22 @@ public class JobController(IJobService jobService) : ControllerBase
         // One call straight down to the service layer
         var results = await _jobService.SearchJobsAsync(q);
         return Ok(results);
+    }
+
+
+    [HttpGet("company/{companyId:guid}/compiled")]
+    public IAsyncEnumerable<JobListing> GetCompanyJobsCompiled(Guid companyId)
+    {
+        // Execution rows straight out to the client
+        return _jobService.GetCompanyJobsCompiledAsync(companyId);
+    }
+
+    //  WINDOW FUNCTION ANALYTICS REPORT (GET /jobs/company/{companyId}/stats) 
+    [Authorize(Roles = "Employer")]
+    [HttpGet("company/{companyId:guid}/stats")]
+    public async Task<ActionResult<IEnumerable<JobListingStatsResponse>>> GetCompanyStats(Guid companyId)
+    {
+        var reportData = await _jobService.GetCompanyApplicationStatsAsync(companyId);
+        return Ok(reportData);
     }
 }

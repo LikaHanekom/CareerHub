@@ -2,6 +2,7 @@ using CareerHub.Api.Data;
 using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Enums;
 
 namespace CareerHub.Api.Repositories
 {
@@ -73,29 +74,46 @@ namespace CareerHub.Api.Repositories
             return job.IsActive; 
         }
 
-        public async Task<IEnumerable<JobListing>> SearchAsync(string searchTerm)
+        public async Task<IEnumerable<JobResponse>> SearchAsync(string searchTerm)
         {
-            // If no search term is provided, default to returning all active, unexpired jobs
+            // 1. Fallback: If no search term is provided, return all active, unexpired jobs projected to DTO
             if (string.IsNullOrWhiteSpace(searchTerm))
             {
                 return await _context.JobListings
                     .AsNoTracking()
-                    .Include(j => j.Company)
                     .Where(j => j.IsActive && (j.ExpiresAt == null || j.ExpiresAt > DateTime.UtcNow))
+                    .Select(j => new JobResponse
+                    {
+                        Id = j.Id,
+                        Title = j.Title,
+                        Description = j.Description,
+                        CompanyId = j.CompanyId,
+                        Company = j.Company != null ? j.Company.Name : string.Empty,
+                        IsActive = j.IsActive,  
+                        ExpiresAt = j.ExpiresAt
+                    })
                     .ToListAsync();
             }
 
-            // Format the text for Postgres tsquery partial-matching
+            // 2. Format the text for Postgres tsquery partial-matching with stemming capabilities
             var formattedQuery = searchTerm.Trim().Replace(" ", " & ") + ":*";
 
+            // 3. High-performance GIN index search query path
             return await _context.JobListings
                 .AsNoTracking()
-                .Include(j => j.Company) // Includes the company data just like your other methods
                 .Where(j => j.IsActive && (j.ExpiresAt == null || j.ExpiresAt > DateTime.UtcNow))
-                
-                // This links directly to the shadow property "SearchVector" and applies the GIN index
                 .Where(j => EF.Property<NpgsqlTypes.NpgsqlTsVector>(j, "SearchVector")
                     .Matches(EF.Functions.ToTsQuery("english", formattedQuery)))
+                .Select(j => new JobResponse
+                {
+                    Id = j.Id,
+                    Title = j.Title,
+                    Description = j.Description,
+                    CompanyId = j.CompanyId,
+                    Company = j.Company != null ? j.Company.Name : string.Empty,
+                    IsActive = j.IsActive, 
+                    ExpiresAt = j.ExpiresAt
+                })
                 .ToListAsync();
         }
 
@@ -105,7 +123,7 @@ namespace CareerHub.Api.Repositories
         }
 
         public async Task<IEnumerable<JobListingStatsResponse>> GetApplicationStatsAsync(Guid companyId)
-    {
+        {
         //Quards against SQL injection attacks
         return await _context.Database.SqlQuery<JobListingStatsResponse>($@" 
             SELECT 

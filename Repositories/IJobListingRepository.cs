@@ -14,5 +14,8 @@ namespace CareerHub.Api.Repositories
         Task DeleteAsync(JobListing listing);
         Task<bool> IsListingOpenAsync(Guid id);
         Task<IEnumerable<JobListing>> SearchAsync(string searchTerm);
+        IAsyncEnumerable<JobListing> GetListingsByCompanyCompiled(Guid companyId);
+
+        Task<IEnumerable<JobListingStatsResponse>> GetApplicationStatsAsync(Guid companyId);
     }
 }

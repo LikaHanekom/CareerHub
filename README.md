@@ -340,3 +340,30 @@ VALUES (gen_random_uuid(), 'Invalid Salary Job', 'Testing constraints', 'Remote'
 (10 rows)
 ```
 
+
+## Connection Pool Configurations & Mathematical Scaling
+
+To ensure high-availability and prevent resource exhaustion under heavy traffic loads, I configured connection pooling boundaries inside our database infrastructure layer.
+
+### 1. Scaling Architecture Calculation
+
+Our maximum connection pool parameters were calculated using the following server capacity boundaries:
+
+Total PostgreSQL Server Capacity: $100$ maximum concurrent connections.
+Superuser/Telemetry Reservation: $10$ connections strictly reserved for administrators and background telemetry monitoring.
+Available Application Headroom: $100 - 10 = 90$ total connections available for application servers.
+
+Because the production web layer scales out symmetrically across 3 active, live instances, the remaining connection overhead is divided equally among them to prevent instance conflict:
+
+$$90 \div 3 = 30 \text{ connections per instance}$$
+
+Therefore, our production connection string explicitly defines `Maximum Pool Size=30`.
+
+### 2. Runtime Behavior Under Full Pool Exhaustion
+
+When an application instance experiences a traffic spike and all 30 pool connections are actively leased out, subsequent database queries undergo the following lifecycle:
+
+1. Queueing (Blocking State): The incoming request does not instantly fail. It enters a synchronous blocking wait queue, waiting for an executing thread to finish its operation and yield its connection back to the pool manager.
+2. Observable Symptom: From the end-user's perspective, the application experiences a severe latency spike. The API request will appear to spin endlessly without returning data.
+3. Timeout Failure: If no connection is freed within the default timeout threshold window, the request drops out of the queue and throws a `Npgsql.PostgresException: Connection pool exhaustion timeout`. The API handles this exception by returning an HTTP 500 Internal Server Error to the client
+

@@ -42,12 +42,32 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
                 ));
             });
 
+            
+
             entity.HasKey(j => j.Id);
             entity.Property(j => j.Id).ValueGeneratedNever();
             entity.Property(j => j.Title).IsRequired().HasMaxLength(100);
             entity.Property(j => j.Description).IsRequired().HasMaxLength(1000);
             entity.Property(j => j.Location).IsRequired().HasMaxLength(100);
 
+            //Composite Indec for public active job board query
+            entity.HasIndex(j => new { j.IsActive, j.ExpiresAt })
+              .HasDatabaseName("ix_job_listings_status_expires_at");
+
+            //Composite index for Employer-scoped dashboard queries
+            entity.HasIndex(j => new { j.CompanyId, j.IsActive })
+              .HasDatabaseName("ix_job_listings_company_id_status");
+            
+            //Combine title and description for full text search
+            entity.Property<NpgsqlTypes.NpgsqlTsVector>("SearchVector")
+              .HasComputedColumnSql("to_tsvector('english', coalesce(\"Title\", '') || ' ' || coalesce(\"Description\", ''))", stored: true);
+            
+            //GIN index over the search Vector
+            entity.HasIndex("SearchVector")
+              .HasMethod("GIN")
+              .HasDatabaseName("ix_job_listings_search_vector");
+
+            
             entity.HasIndex(j => new
             {
                 j.Title,
@@ -102,6 +122,15 @@ public class CareerHubDbContext(DbContextOptions<CareerHubDbContext> options): D
                 ap.JobListingId,
                 ap.ApplicantId
             });
+
+            //INDEXES
+            // Index supporting rapid HasAppliedAsync check
+            entity.HasIndex(a => new { a.ApplicantId, a.JobListingId })
+                .HasDatabaseName("ix_applications_applicant_id_job_listing_id");
+
+            // Index supporting employer dashboards looking at listing applicants
+            entity.HasIndex(a => a.JobListingId)
+                .HasDatabaseName("ix_applications_job_listing_id");
 
             //Application Relationships
             entity.HasOne(ap => ap.JobListing)

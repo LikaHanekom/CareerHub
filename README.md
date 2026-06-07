@@ -340,6 +340,11 @@ VALUES (gen_random_uuid(), 'Invalid Salary Job', 'Testing constraints', 'Remote'
 (10 rows)
 ```
 
+### 5. FromSql Parameterization Proof
+
+Why String Interpolation inside SqlQuery<T> is Safe:** Entity Framework Core intercepts the interpolated string at compile-time and automatically extracts the variables into true database command parameters (`FormattableString`), ensuring that user inputs are handled strictly as isolated values rather than executable database syntax.
+
+Why string.Format or + Concatenation is Unsafe:Pre-building the string using raw concatenation or `string.Format` physically flattens the input parameters directly into the raw text before it ever reaches EF Core, enabling malicious actors to inject arbitrary SQL control characters that permanently alter the command's structural logic.
 
 ## Connection Pool Configurations & Mathematical Scaling
 
@@ -358,6 +363,18 @@ Because the production web layer scales out symmetrically across 3 active, live 
 $$90 \div 3 = 30 \text{ connections per instance}$$
 
 Therefore, our production connection string explicitly defines `Maximum Pool Size=30`.
+
+#### C. Multi-Environment Pool Layout Proof
+
+To ensure our application behaves predictably across distinct operational spaces, the connection pool configuration is split into two distinct tiers:
+
+1. **Development Sandbox (`appsettings.Development.json`):**
+   * *Configuration:* `Minimum Pool Size=2; Maximum Pool Size=5;`
+   * *Justification:* Designed to keep local system footprints lightweight. It limits the local container from consuming unnecessary thread allocations while you spin up rapid development builds on your local Docker engine.
+
+2. **Cloud Production (`appsettings.json`):**
+   * *Configuration:* `Minimum Pool Size=10; Maximum Pool Size=30;`
+   * *Justification:* Establishes a warm baseline pool of 10 idle connections to instantly eliminate connection establishment overhead during sudden traffic spikes. This allows scaling headroom up to 30 elements per instance as derived from our total database engine thread capacity arithmetic ($30 \times 3 \text{ nodes} = 90 \text{ connections}$).
 
 ### 2. Runtime Behavior Under Full Pool Exhaustion
 

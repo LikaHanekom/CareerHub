@@ -9,6 +9,7 @@ namespace CareerHub.Api.Services
     public interface IApplicationService
     {
         Task<Application> SubmitApplicationAsync(ApplicationRequest request);
+        Task<Application?> GetApplicationByIdAsync(Guid id);
         
         Task UpdateStatusAsync(Guid applicantId, Guid jobListingId, ApplicationStatus newStatus);
         

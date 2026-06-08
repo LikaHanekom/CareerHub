@@ -35,15 +35,27 @@ public class JobController(IJobService jobService) : ControllerBase
     }
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)
+    public async Task<IActionResult> GetJobByIdAsync(Guid id) // 🚀 Changed to IActionResult
     {
+        // Fetch data payload via service tier
         var jobDetail = await _jobService.GetJobByIdAsync(id);
         if (jobDetail == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        return Ok(jobDetail);
+        // Generate the structural execution fingerprint (ETag)
+        string rawEtag = $"{jobDetail.Id}:{jobDetail.PostedAt.Ticks}:{jobDetail.SalaryMin}"; 
+        string etag = $"\"{rawEtag}\""; // Standard HTTP double-quote wrappers
+
+        // Inbound request caching headers
+        if (Request.Headers.TryGetValue("If-None-Match", out var clientEtag) && clientEtag == etag) 
+        {
+            return StatusCode(StatusCodes.Status304NotModified); 
+        }
+
+        Response.Headers.ETag = etag; 
+        return Ok(jobDetail); 
     }
 
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────

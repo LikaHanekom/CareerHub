@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Data;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;
 using CareerHub.Api.Repositories; 
@@ -15,12 +17,12 @@ namespace CareerHub.Api.Services
         private readonly IApplicationRepository _applicationRepo;
         private readonly IJobListingRepository _jobRepo;
 
-        // 🚀 Removed _dbContext completely to keep architectural consistency!
 
         public ApplicationService(IApplicationRepository applicationRepo, IJobListingRepository jobRepo)
         {
             _applicationRepo = applicationRepo;
             _jobRepo = jobRepo;
+            
         }
 
         public async Task<Application> SubmitApplicationAsync(ApplicationRequest request)
@@ -109,6 +111,11 @@ namespace CareerHub.Api.Services
             await _applicationRepo.UpdateAsync(app); 
 
             return app;
+        }
+        public async Task<Application?> GetApplicationByIdAsync(Guid id)
+        {
+            // Simply fetch the tracked application straight from your repository gate
+            return await _applicationRepo.GetApplicationByIdAsync(id);
         }
     }
 }

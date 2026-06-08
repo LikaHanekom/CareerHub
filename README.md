@@ -404,3 +404,6 @@ Default Versioning: Setting the AssumeDefaultVersionWhenUnspecified = true. This
 - I'm choosing the Sliding Window or the Token Bucket as it is ideal for high-traffic endpoints
 - Fixed windows are vulnerable for bursting at boundary edges. A sliding window spreads traffic out across segments to prevent boundary spikes.
 
+** ETag Evaluation **
+- A strong ETag relies on a tracking property that changes whenever any field in the row is modified. You would add a ConcurrencyToken field like a Guid VersionId or an incremental RowVersion timestamp directly onto the JobListing domain model. This value would regenerate via an entity lifecycle interceptor every single time an update or save operation is run on that database row.  
+- Why the current approach can produce a stale 304: If a recruiter modifies only the job description text or location, the PostedAt timestamp and SalaryMin remain completely unchanged. The computed ETag remains exactly the same, causing a user to receive a misleading 304 Not Modified and miss out on seeing the updated job details.  

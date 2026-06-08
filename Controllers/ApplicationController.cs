@@ -51,4 +51,23 @@ public class ApplicationController(IApplicationService applicationService) : Con
 
         return NoContent(); 
     }
+
+    [HttpPatch("{id:guid}/status")] 
+    public async Task<IActionResult> PatchStatus(Guid id, [FromBody] UpdateStatusRequest request)
+    {
+        try
+        {
+            //Call  updated service tier
+            var updatedApplication = await _applicationService.PartialUpdateStatusAsync(id, request);
+            
+            if (updatedApplication == null) 
+                return NotFound($"Application with ID {id} was not found.");
+
+            return Ok(updatedApplication);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

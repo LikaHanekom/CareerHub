@@ -15,5 +15,6 @@ namespace CareerHub.Api.Services
         Task WithdrawApplicationAsync(Guid applicationId, Guid requestingApplicantId);
         
         bool IsValidTransition(ApplicationStatus currentStatus, ApplicationStatus targetStatus);
+        Task<Application?> PartialUpdateStatusAsync(Guid id, UpdateStatusRequest request);
     }
 }

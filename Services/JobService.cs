@@ -2,6 +2,7 @@ using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Repositories; 
 using CareerHub.Api.Exceptions;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace CareerHub.Api.Services;
 
@@ -12,6 +13,7 @@ public class JobService : IJobService
     public JobService(IJobListingRepository repo)
     {
         _repo = repo;
+
     }
 
     public async Task<IEnumerable<JobResponse>> GetAllJobsAsync()
@@ -163,4 +165,26 @@ public class JobService : IJobService
         // Executes your window-function analytic report safely mapped to its response record
         return await _repo.GetApplicationStatsAsync(companyId);
     }
+
+    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(int page, int pageSize)
+{
+    // 1. Fetch the items from the repository
+    var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(page, pageSize);
+
+    // 2. Map manually using LINQ Select (No AutoMapper needed!)
+    var itemResponses = items.Select(job => new JobResponse
+    {
+        Id = job.Id,
+        Title = job.Title,
+        Description = job.Description,
+        Location = job.Location,
+        Type = job.Type,
+        PostedAt = job.PostedAt,
+        IsActive = job.IsActive,
+        Company = job.Company?.Name ?? "Unknown" // Safely handle relationships
+    });
+
+    // 3. Return the envelope wrapper
+    return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
+}
 }

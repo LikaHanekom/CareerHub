@@ -30,4 +30,5 @@ public interface IJobService
 
     IAsyncEnumerable<JobListing> GetCompanyJobsCompiledAsync(Guid companyId);
     Task<IEnumerable<JobListingStatsResponse>> GetCompanyApplicationStatsAsync(Guid companyId);
+    Task<PagedResponse<JobResponse>> GetActiveJobsAsync(int page, int pageSize);
 }

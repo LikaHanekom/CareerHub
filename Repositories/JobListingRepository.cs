@@ -141,6 +141,24 @@ namespace CareerHub.Api.Repositories
             WHERE j.""CompanyId"" = {companyId}
             GROUP BY j.""Id"", j.""Title""
         ").ToListAsync();
-    }
+        }
+
+        public async Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(int page, int pageSize)
+        {
+            // Establish a single, reusable query base 
+            var query = _context.JobListings
+                                .Where(j => j.IsActive); 
+
+            // 1. Issue the Count query
+            int totalCount = await query.CountAsync(); 
+
+            // 2. Issue the Data fetch query with deterministic sort before Skip/Take 
+            var items = await query.OrderByDescending(j => j.PostedAt) 
+                                .Skip((page - 1) * pageSize) //remember pageSize is the amount of joblistigns per page
+                                .Take(pageSize) 
+                                .ToListAsync(); 
+
+            return (items, totalCount);
+        }
     }
 }

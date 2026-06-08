@@ -19,12 +19,19 @@ public class JobController(IJobService jobService) : ControllerBase
 
     // ── 1. GET ALL JOBS (GET /jobs) ──────────────────────────────────
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
+    public async Task<ActionResult<PagedResponse<JobResponse>>> GetActiveJobs(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 20)
     {
-        var response = await _jobService.GetAllJobsAsync();
-        return Ok(response);
-    }
+        //  Call your service layer 
+        var pagedEnvelope = await _jobService.GetActiveJobsAsync(page, pageSize);
 
+        // Write the metadata tracking header out
+        Response.Headers.Append("X-Total-Count", pagedEnvelope.TotalCount.ToString());
+
+        // Return the smart math envelope 
+        return Ok(pagedEnvelope);
+    }
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)

@@ -8,6 +8,7 @@ using CareerHub.Api.DTOs;
 using CareerHub.Api.Exceptions;
 using CareerHub.Api.Services;
 using CareerHub.Api.Models;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 namespace CareerHub.Api.Controllers;
@@ -61,6 +62,7 @@ public class JobController(IJobService jobService) : ControllerBase
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────
     [Authorize(Roles = "Employer")]
     [HttpPost]
+    [EnableRateLimiting("post-listing")]
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
         if (!ModelState.IsValid)
@@ -108,6 +110,7 @@ public class JobController(IJobService jobService) : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting("search")]
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         // One call straight down to the service layer

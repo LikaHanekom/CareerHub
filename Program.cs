@@ -5,6 +5,8 @@ using CareerHub.Api.Middleware;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using System.Text;
 using Microsoft.Extensions.Options;
 using CareerHub.Api.Data;
@@ -102,6 +104,62 @@ try
        });
     });
 
+    builder.Services.AddRateLimiter(options =>
+    {
+        // Immediate rejection
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        // Custom Response Payload Construction
+        options.OnRejected = async (context, token) =>
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            {
+                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+                await context.HttpContext.Response.WriteAsync(
+                    $"Rate limit exceeded. Please retry after {(int)retryAfter.TotalSeconds} seconds.", token);
+            }
+            else
+            {
+                await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Please try again later.", token);
+            }
+        };
+
+        // Global Baseline Policy - 200 requests every 60 seconds
+        options.AddFixedWindowLimiter("global", opt =>
+        {
+            opt.PermitLimit = 200;
+            opt.Window = TimeSpan.FromSeconds(60);
+            opt.QueueLimit = 0;
+        });
+
+        // Search Optimization Policy 
+        options.AddSlidingWindowLimiter("search", opt =>
+        {
+            opt.PermitLimit = 30;
+            opt.Window = TimeSpan.FromSeconds(60);
+            opt.SegmentsPerWindow = 6; // Evaluates traffic blocks every 10 seconds smoothly
+            opt.QueueLimit = 0;
+        });
+
+        // Application Protection Policy- Max 5 job applications perHour
+        options.AddFixedWindowLimiter("apply", opt =>
+        {
+            opt.PermitLimit = 5;
+            opt.Window = TimeSpan.FromMinutes(60);
+            opt.QueueLimit = 0;
+        });
+
+        //Listing Creation Spam Policy - Max 10 job posts per hour per user 
+        options.AddFixedWindowLimiter("post-listing", opt =>
+        {
+            opt.PermitLimit = 10;
+            opt.Window = TimeSpan.FromMinutes(60);
+            opt.QueueLimit = 0;
+        });
+    });
+
 
     //register EF core
     builder.Services.AddDbContext<CareerHubDbContext>(options =>
@@ -125,6 +183,7 @@ try
     app.UseSerilogRequestLogging();
 
     app.UseCors("FrontendPolicy");
+    app.UseRateLimiter();
 
     // Pipeline ordering: Exception handler goes early to catch downstream errors
     app.UseExceptionHandler();
@@ -136,6 +195,7 @@ try
     app.UseStatusCodePages();
     app.UseHttpsRedirection();
     app.MapControllers(); 
+    app.MapControllers().RequireRateLimiting("global");
 
     app.Run();
 }

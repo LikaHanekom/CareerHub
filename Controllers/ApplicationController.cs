@@ -6,6 +6,7 @@ using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;
 using CareerHub.Api.Enums;
 using CareerHub.Api.Services;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CareerHub.Api.Controllers;
 
@@ -18,6 +19,7 @@ public class ApplicationController(IApplicationService applicationService) : Con
 
     // ── 1. SUBMIT AN APPLICATION 
     [HttpPost("apply")]
+    [EnableRateLimiting("apply")]
     public async Task<ActionResult<Application>> ApplyForJob([FromBody] ApplicationRequest request)
     {
         if (!ModelState.IsValid)
@@ -31,7 +33,33 @@ public class ApplicationController(IApplicationService applicationService) : Con
         return StatusCode(201, result);
     }
 
-    // ── 2. Update ──────
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetApplicationById(Guid id) // 🚀 Uses IActionResult for flexible 304/200 returns
+    {
+        // 1. Fetch the application using your service layer
+        var app = await _applicationService.GetApplicationByIdAsync(id);
+        if (app == null)
+        {
+            return NotFound($"Application with ID {id} was not found.");
+        }
+
+        // 2. Generate structural execution fingerprint using ID and Status enum
+        string rawEtag = $"{app.Id}:{app.Status}";
+        string etag = $"\"{rawEtag}\""; // Double quotes are required by HTTP specifications
+
+        // 3. Evaluate inbound caching headers sent by the client
+        if (Request.Headers.TryGetValue("If-None-Match", out var clientEtag) && clientEtag == etag)
+        {
+            // Cache Hit! Return a 304 Not Modified status with a completely empty body
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        // 4. Cache Miss: Append the computed ETag header to the response and return data
+        Response.Headers.ETag = etag;
+        return Ok(app);
+    }
+
+    // Update ──────
     [HttpPut("status")]
     public async Task<IActionResult> UpdateStatus(
         [FromQuery] Guid applicantId, 

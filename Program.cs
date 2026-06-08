@@ -84,10 +84,12 @@ try
        options.AddPolicy("FrontendPolicy", 
        policy =>
        {
-           policy
-                .WithOrigins("http://localhost:3000")//JS will rely on this
+            /*policy.AllowAnyOrigin().AllowCredentials()//testing line*/
+            policy.WithOrigins("http://localhost:3000")//JS will rely on this
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials()
+                .WithExposedHeaders("X-Total-Count");
        });
     });
 

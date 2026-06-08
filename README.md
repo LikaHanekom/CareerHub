@@ -377,3 +377,30 @@ When an application instance experiences a traffic spike and all 30 pool connect
 2. Observable Symptom: From the end-user's perspective, the application experiences a severe latency spike. The API request will appear to spin endlessly without returning data.
 3. Timeout Failure: If no connection is freed within the default timeout threshold window, the request drops out of the queue and throws a `Npgsql.PostgresException: Connection pool exhaustion timeout`. The API handles this exception by returning an HTTP 500 Internal Server Error to the client
 
+
+
+## Assignment 3.2:
+** 1.Pagination Strategy **
+- Offset Pragnation (skip/take)
+- Why: For a jobListings board that CareerHub will have, where users will be able to view the active postings, an occasional duplicate jobListign will be more tolerable as long as users are able to skip to deeper pages.
+- Drawbacks: If a job listing is added between a users fetching page 1 and 2, the newly inserted jobListing will shift the existing items down. When clients call page 2 they will see the last item of Page 1 repeating on page 2
+
+** 2. PATCH vs PUT Race Condition **
+In a scenario where recruiter A and B, open joblisting #1 simmultaneously. Recruiter A updates the SalaryMin, and recruiter B  fix a typo in the Description. Both of their requests will be PUT requests which sends the entire payload. 
+
+If recruiter A's request finishes second, it will silently overwrite recruiter B's typo fix, and recruiter B;s changes are lost.
+
+- The Nullable DTO Resolution: This solution, only sends non-null fields, so rqruiter A's SalaryMin and recruiter B's Description. Because all other fields are null, the backend completely ignores them and allows bothe updates to continue independently. 
+
+- The Nullable solution do However have some drawbacks, such as: you cannot clear a field, becasue the field will look the same as null. JSON Patch can resolve this by using operation objects.
+
+** 3. Versioning Strategy **
+Breaking Change disrupts the existing frontend integrations. Example: Renaming SalaryMin to MinimumSalary.
+Non-breaking change maintains backwards compatibility. Example: Adding new field like Remote Work to the response.
+
+Default Versioning: Setting the AssumeDefaultVersionWhenUnspecified = true. This forces the middleware routing to process requests without a version prefix, as if they target /api/v1/jobs, ensuring existing clients dont break when versioned routing is introduced.
+
+** 4. Rate Limiting Algorithm **
+- I'm choosing the Sliding Window or the Token Bucket as it is ideal for high-traffic endpoints
+- Fixed windows are vulnerable for bursting at boundary edges. A sliding window spreads traffic out across segments to prevent boundary spikes.
+

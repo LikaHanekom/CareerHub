@@ -163,16 +163,21 @@ namespace CareerHub.Api.Repositories
 
         public async Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(JobListingFilterQuery filter)
         {
+            // Compute valid fallback numbers using local variables instead of modifying the object properties
+            int page = filter.Page <= 0 ? 1 : filter.Page;
+            int pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+
             // Establish the query root 
             var query = _context.JobListings.Where(j => j.IsActive).AsQueryable(); 
 
-            // Dynamically compose WHERE clauses on the expression tree
+            // Safely evaluate optional filters
             if (!string.IsNullOrWhiteSpace(filter.Location))
             {
                 query = query.Where(j => EF.Functions.ILike(j.Location, $"%{filter.Location}%")); 
             }
 
-            if (Enum.TryParse<JobType>(filter.EmploymentType, ignoreCase: true, out var parsedType))
+            if (!string.IsNullOrWhiteSpace(filter.EmploymentType) && 
+                Enum.TryParse<JobType>(filter.EmploymentType, ignoreCase: true, out var parsedType))
             {
                 query = query.Where(j => j.Type == parsedType); 
             }
@@ -192,13 +197,16 @@ namespace CareerHub.Api.Repositories
                 query = query.Where(j => j.CompanyId == filter.CompanyId.Value); 
             }
 
-            // Count matching rows before pagination
+            // Calculate total count before pagination window is sliced
             int totalCount = await query.CountAsync(); 
 
-            // Dynamic Sorting Evaluation 
-            bool isAscending = filter.Dir.Equals("asc", StringComparison.OrdinalIgnoreCase); 
+            // Safely check direction and target string to avoid NullReference exceptions
+            bool isAscending = !string.IsNullOrWhiteSpace(filter.Dir) && 
+                            filter.Dir.Equals("asc", StringComparison.OrdinalIgnoreCase); 
             
-            query = filter.Sort.ToLower() switch
+            string sortTarget = filter.Sort?.ToLower() ?? "postedat";
+
+            query = sortTarget switch
             {
                 "salarymin" => isAscending ? query.OrderBy(j => j.SalaryMin) : query.OrderByDescending(j => j.SalaryMin), 
                 "salarymax" => isAscending ? query.OrderBy(j => j.SalaryMax) : query.OrderByDescending(j => j.SalaryMax), 
@@ -206,10 +214,10 @@ namespace CareerHub.Api.Repositories
                 _           => query.OrderByDescending(j => j.PostedAt) 
             };
 
-            // Slice boundaries over the database using parameters inside the object
+            // Slice boundaries over the database using your fixed local variables
             var items = await query
-                .Skip((filter.Page - 1) * filter.PageSize)
-                .Take(filter.PageSize)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync(); 
 
             return (items, totalCount);

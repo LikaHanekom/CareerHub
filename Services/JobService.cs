@@ -205,8 +205,12 @@ public class JobService : IJobService
             Company = job.Company?.Name ?? "Unknown"
         });
 
-        // Wrap everything back inside 
-        return new PagedResponse<JobResponse>(itemResponses, totalCount, filter.Page, filter.PageSize);
+        // Compute safe local variables to pass into the envelope constructor
+        int displayPage = filter.Page <= 0 ? 1 : filter.Page;
+        int displayPageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+
+        // Wrap everything back inside using the fallback display values
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, displayPage, displayPageSize);
     }
 
     public async Task<JobResponse> PatchJobAsync(Guid id, UpdateJobListingRequest request)

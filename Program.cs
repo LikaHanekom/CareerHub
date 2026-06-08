@@ -137,7 +137,7 @@ try
         // Search Optimization Policy 
         options.AddSlidingWindowLimiter("search", opt =>
         {
-            opt.PermitLimit = 30;
+            opt.PermitLimit = 1;
             opt.Window = TimeSpan.FromSeconds(60);
             opt.SegmentsPerWindow = 6; // Evaluates traffic blocks every 10 seconds smoothly
             opt.QueueLimit = 0;
@@ -154,7 +154,7 @@ try
         //Listing Creation Spam Policy - Max 10 job posts per hour per user 
         options.AddFixedWindowLimiter("post-listing", opt =>
         {
-            opt.PermitLimit = 10;
+            opt.PermitLimit = 2;
             opt.Window = TimeSpan.FromMinutes(60);
             opt.QueueLimit = 0;
         });
@@ -185,6 +185,9 @@ try
     app.UseCors("FrontendPolicy");
     app.UseRateLimiter();
 
+    builder.Services.AddResponseCaching();
+    app.UseResponseCaching();
+
     // Pipeline ordering: Exception handler goes early to catch downstream errors
     app.UseExceptionHandler();
 
@@ -195,7 +198,7 @@ try
     app.UseStatusCodePages();
     app.UseHttpsRedirection();
     app.MapControllers(); 
-    app.MapControllers().RequireRateLimiting("global");
+    //app.MapControllers().RequireRateLimiting("global");
 
     app.Run();
 }

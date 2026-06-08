@@ -379,7 +379,8 @@ When an application instance experiences a traffic spike and all 30 pool connect
 
 
 
-## Assignment 3.2:
+## Assignment 3.1:
+
 ** 1.Pagination Strategy **
 - Offset Pragnation (skip/take)
 - Why: For a jobListings board that CareerHub will have, where users will be able to view the active postings, an occasional duplicate jobListign will be more tolerable as long as users are able to skip to deeper pages.
@@ -390,9 +391,9 @@ In a scenario where recruiter A and B, open joblisting #1 simmultaneously. Recru
 
 If recruiter A's request finishes second, it will silently overwrite recruiter B's typo fix, and recruiter B;s changes are lost.
 
-- The Nullable DTO Resolution: This solution, only sends non-null fields, so rqruiter A's SalaryMin and recruiter B's Description. Because all other fields are null, the backend completely ignores them and allows bothe updates to continue independently. 
+* **The Nullable DTO Resolution:** This solution, only sends non-null fields, so rqruiter A's SalaryMin and recruiter B's Description. Because all other fields are null, the backend completely ignores them and allows bothe updates to continue independently. 
 
-- The Nullable solution do However have some drawbacks, such as: you cannot clear a field, becasue the field will look the same as null. JSON Patch can resolve this by using operation objects.
+* **The Nullable solution do However have some drawbacks, such as:** you cannot clear a field, becasue the field will look the same as null. JSON Patch can resolve this by using operation objects.
 
 ** 3. Versioning Strategy **
 Breaking Change disrupts the existing frontend integrations. Example: Renaming SalaryMin to MinimumSalary.
@@ -404,6 +405,32 @@ Default Versioning: Setting the AssumeDefaultVersionWhenUnspecified = true. This
 - I'm choosing the Sliding Window or the Token Bucket as it is ideal for high-traffic endpoints
 - Fixed windows are vulnerable for bursting at boundary edges. A sliding window spreads traffic out across segments to prevent boundary spikes.
 
+
 ** ETag Evaluation **
 - A strong ETag relies on a tracking property that changes whenever any field in the row is modified. You would add a ConcurrencyToken field like a Guid VersionId or an incremental RowVersion timestamp directly onto the JobListing domain model. This value would regenerate via an entity lifecycle interceptor every single time an update or save operation is run on that database row.  
 - Why the current approach can produce a stale 304: If a recruiter modifies only the job description text or location, the PostedAt timestamp and SalaryMin remain completely unchanged. The computed ETag remains exactly the same, causing a user to receive a misleading 304 Not Modified and miss out on seeing the updated job details.  
+
+** Versioning Lifecycle **
+
+v1 - Keep it active, untouched, and return the original SalaryMin property to avoid breaking existing clients.
+
+v2- Introduce a new controller route (/api/v2/jobs) alongside a new DTO JobListingResponseV2 that maps the field name to MinimumSalary
+
+-Simultaneous Runtime Strategy: Run both versions concurrently for 3–6 months to give frontend teams plenty of time to transition.
+
+-Use standard headers like Sunset: Wed, 11 Nov 2026 00:00:00 GMT or Deprecation: true in V1 responses to explicitly flag that the endpoint is deprecated.
+
+** Rate Limiting for Authenticated Users **
+- IP address tracking fails for authenticated users because entire corporate offices or university networks share a single public IP, which can unfairly block legitimate users.
+
+- Partition Key: Use the sub (Subject/User ID) or id claim extracted from the validated incoming JWT. This secures the endpoint by ensuring rate limits track the individual account, preventing attackers from bypassing limits by swapping IP addresses or using proxy rotation.
+
+**Connection Pool Sizing**
+Rate limiting acts as an API gateway filter that rejects excessive traffic early. Because it rejects abusive requests instantly with a 429 status code, those requests never hit your inner repository code or wait for database connections. This effectively controls the arrival rate of database queries, helping prevent connection pool starvation during sudden traffic spikes.
+
+** Part 7: **
+Why the apply policy uses a 60-minute window instead of a 60-second window
+- A 60-second window would allow users to quickly submit 5 applications in a single minute and then immediately submit another 5 applications in the next minute. This does not prevent bot spam or mass-spamming behavior over time. By extending the window to 60 minutes, limits the user to only 5 submissions per hour, which aligns with normal human behavior for a job application process and effectively blocks automated scripts from flooding the database with low-quality applications.
+
+What a real-world CareerHub deployment would use instead of IP-based rate limiting for the application submission endpoint 
+- A real-world deployment would use token-based tracking by extracting identifying information from the authenticated user's session or authorization header. Specifically, it would look at the unique User ID or Subject claim embedded inside the validated incoming JSON Web Token. This ensures that the rate limit follows the individual authenticated account rather than a shared network IP address.

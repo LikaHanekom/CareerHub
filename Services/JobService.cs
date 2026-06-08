@@ -208,4 +208,23 @@ public class JobService : IJobService
         // Wrap everything back inside 
         return new PagedResponse<JobResponse>(itemResponses, totalCount, filter.Page, filter.PageSize);
     }
+
+    public async Task<JobResponse> PatchJobAsync(Guid id, UpdateJobListingRequest request)
+    {
+        //  Send to repository layer
+        var updatedListing = await _repo.PatchAsync(id, request);
+
+        // Map domain model back into your unified JobResponse DTO
+        return new JobResponse
+        {
+            Id = updatedListing.Id,
+            Title = updatedListing.Title,
+            Description = updatedListing.Description,
+            Location = updatedListing.Location,
+            Type = updatedListing.Type,
+            PostedAt = updatedListing.PostedAt,
+            IsActive = updatedListing.IsActive,
+            Company = updatedListing.Company?.Name ?? "Unknown"
+        };
+    }
 }

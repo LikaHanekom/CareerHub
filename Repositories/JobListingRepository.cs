@@ -214,5 +214,46 @@ namespace CareerHub.Api.Repositories
 
             return (items, totalCount);
         }
+
+        public async Task<JobListing> PatchAsync(Guid id, UpdateJobListingRequest request)
+        {
+            // Fetch tracking instance from EF Core context
+            var listing = await _context.JobListings.FindAsync(id) 
+                ?? throw new KeyNotFoundException("Listing not found");
+
+            // Conditionally map properties if the client explicitly sent them
+            if (request.Title != null) listing.Title = request.Title;
+            if (request.Description != null) listing.Description = request.Description;
+            if (request.Location != null) listing.Location = request.Location;
+            
+            //Enum Transition
+            if (request.EmploymentType != null) 
+            {
+                if (Enum.TryParse<JobType>(request.EmploymentType, ignoreCase: true, out var parsedType))
+                {
+                    listing.Type = parsedType;
+                }
+            }
+            
+            if (request.SalaryMin != null) listing.SalaryMin = request.SalaryMin.Value;
+            if (request.SalaryMax != null) listing.SalaryMax = request.SalaryMax.Value;
+
+            // Business rule verification following delta updates
+            if (listing.SalaryMin > listing.SalaryMax) 
+            {
+                throw new ArgumentException("SalaryMin must be less than or equal to SalaryMax");
+            }
+
+            if (request.ExpiresAt != null) 
+            {
+                if (request.ExpiresAt.Value <= DateTime.UtcNow) 
+                    throw new ArgumentException("ExpiresAt must be in the future");
+                listing.ExpiresAt = request.ExpiresAt.Value;
+            }
+
+            // Commit changes to PostgreSQL
+            await _context.SaveChangesAsync();
+            return listing;
+        }
     }
 }

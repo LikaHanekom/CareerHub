@@ -117,4 +117,12 @@ public class JobController(IJobService jobService) : ControllerBase
         var reportData = await _jobService.GetCompanyApplicationStatsAsync(companyId);
         return Ok(reportData);
     }
+
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Employer,Admin")] 
+    public async Task<ActionResult<JobResponse>> PatchJob(Guid id, [FromBody] UpdateJobListingRequest request)
+    {
+        var response = await _jobService.PatchJobAsync(id, request);
+        return Ok(response);
+    }
 }

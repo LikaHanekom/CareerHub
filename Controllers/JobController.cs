@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Exceptions;
@@ -12,7 +13,8 @@ using CareerHub.Api.Models;
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
-[Route("jobs")] 
+[Route("api/v{version:apiVersion}/jobs")]
+[ApiVersion("1.0")]
 public class JobController(IJobService jobService) : ControllerBase
 {
     private readonly IJobService _jobService = jobService;

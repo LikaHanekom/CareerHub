@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;
 using CareerHub.Api.Enums;
@@ -9,7 +10,8 @@ using CareerHub.Api.Services;
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
-[Route("api/applications")] 
+[Route("api/v{version:apiVersion}/applications")]
+[ApiVersion("1.0")]
 public class ApplicationController(IApplicationService applicationService) : ControllerBase
 {
     private readonly IApplicationService _applicationService = applicationService;

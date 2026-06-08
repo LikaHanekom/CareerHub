@@ -11,6 +11,7 @@ using CareerHub.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using CareerHub.Api.Extensions;
 using CareerHub.Api.Infrastructure;
+using Asp.Versioning;
 
 // LoggerConfiguration
 Log.Logger = new LoggerConfiguration()
@@ -25,6 +26,14 @@ try
 
     builder.Services.AddInfrastructureServices(builder.Configuration);
 
+    //register versioning engine
+    builder.Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0); 
+        options.AssumeDefaultVersionWhenUnspecified = true; 
+        options.ReportApiVersions = true; 
+        options.ApiVersionReader = new UrlSegmentApiVersionReader(); 
+    });
     // Serilog
     builder.Host.UseSerilog();
 

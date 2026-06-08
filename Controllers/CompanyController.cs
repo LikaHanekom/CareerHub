@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CareerHub.Api.Models;
 using CareerHub.Api.Services;
+using Asp.Versioning;
 using CareerHub.Api.Exceptions; 
 using CareerHub.Api.DTOs; 
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
-[Route("companies")] 
+[Route("api/v{version:apiVersion}/companies")]
+[ApiVersion("1.0")]
 public class CompanyController(ICompanyService companyService) : ControllerBase
 {
     private readonly ICompanyService _companyService = companyService;

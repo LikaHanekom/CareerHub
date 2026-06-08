@@ -9,11 +9,13 @@ namespace CareerHub.Api.Services
     public interface IApplicationService
     {
         Task<Application> SubmitApplicationAsync(ApplicationRequest request);
+        Task<Application?> GetApplicationByIdAsync(Guid id);
         
         Task UpdateStatusAsync(Guid applicantId, Guid jobListingId, ApplicationStatus newStatus);
         
         Task WithdrawApplicationAsync(Guid applicationId, Guid requestingApplicantId);
         
         bool IsValidTransition(ApplicationStatus currentStatus, ApplicationStatus targetStatus);
+        Task<Application?> PartialUpdateStatusAsync(Guid id, UpdateStatusRequest request);
     }
 }

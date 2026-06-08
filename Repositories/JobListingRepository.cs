@@ -141,6 +141,127 @@ namespace CareerHub.Api.Repositories
             WHERE j.""CompanyId"" = {companyId}
             GROUP BY j.""Id"", j.""Title""
         ").ToListAsync();
-    }
+        }
+
+        public async Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(int page, int pageSize)
+        {
+            // Establish a single, reusable query base 
+            var query = _context.JobListings
+                                .Where(j => j.IsActive); 
+
+            // 1. Issue the Count query
+            int totalCount = await query.CountAsync(); 
+
+            // 2. Issue the Data fetch query with deterministic sort before Skip/Take 
+            var items = await query.OrderByDescending(j => j.PostedAt) 
+                                .Skip((page - 1) * pageSize) //remember pageSize is the amount of joblistigns per page
+                                .Take(pageSize) 
+                                .ToListAsync(); 
+
+            return (items, totalCount);
+        }
+
+        public async Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(JobListingFilterQuery filter)
+        {
+            // Compute valid fallback numbers using local variables instead of modifying the object properties
+            int page = filter.Page <= 0 ? 1 : filter.Page;
+            int pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+
+            // Establish the query root 
+            var query = _context.JobListings.Where(j => j.IsActive).AsQueryable(); 
+
+            // Safely evaluate optional filters
+            if (!string.IsNullOrWhiteSpace(filter.Location))
+            {
+                query = query.Where(j => EF.Functions.ILike(j.Location, $"%{filter.Location}%")); 
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.EmploymentType) && 
+                Enum.TryParse<JobType>(filter.EmploymentType, ignoreCase: true, out var parsedType))
+            {
+                query = query.Where(j => j.Type == parsedType); 
+            }
+
+            if (filter.SalaryMin.HasValue)
+            {
+                query = query.Where(j => j.SalaryMin >= filter.SalaryMin.Value); 
+            }
+
+            if (filter.SalaryMax.HasValue)
+            {
+                query = query.Where(j => j.SalaryMax <= filter.SalaryMax.Value); 
+            }
+
+            if (filter.CompanyId.HasValue)
+            {
+                query = query.Where(j => j.CompanyId == filter.CompanyId.Value); 
+            }
+
+            // Calculate total count before pagination window is sliced
+            int totalCount = await query.CountAsync(); 
+
+            // Safely check direction and target string to avoid NullReference exceptions
+            bool isAscending = !string.IsNullOrWhiteSpace(filter.Dir) && 
+                            filter.Dir.Equals("asc", StringComparison.OrdinalIgnoreCase); 
+            
+            string sortTarget = filter.Sort?.ToLower() ?? "postedat";
+
+            query = sortTarget switch
+            {
+                "salarymin" => isAscending ? query.OrderBy(j => j.SalaryMin) : query.OrderByDescending(j => j.SalaryMin), 
+                "salarymax" => isAscending ? query.OrderBy(j => j.SalaryMax) : query.OrderByDescending(j => j.SalaryMax), 
+                "title"     => isAscending ? query.OrderBy(j => j.Title) : query.OrderByDescending(j => j.Title), 
+                _           => query.OrderByDescending(j => j.PostedAt) 
+            };
+
+            // Slice boundaries over the database using your fixed local variables
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(); 
+
+            return (items, totalCount);
+        }
+
+        public async Task<JobListing> PatchAsync(Guid id, UpdateJobListingRequest request)
+        {
+            // Fetch tracking instance from EF Core context
+            var listing = await _context.JobListings.FindAsync(id) 
+                ?? throw new KeyNotFoundException("Listing not found");
+
+            // Conditionally map properties if the client explicitly sent them
+            if (request.Title != null) listing.Title = request.Title;
+            if (request.Description != null) listing.Description = request.Description;
+            if (request.Location != null) listing.Location = request.Location;
+            
+            //Enum Transition
+            if (request.EmploymentType != null) 
+            {
+                if (Enum.TryParse<JobType>(request.EmploymentType, ignoreCase: true, out var parsedType))
+                {
+                    listing.Type = parsedType;
+                }
+            }
+            
+            if (request.SalaryMin != null) listing.SalaryMin = request.SalaryMin.Value;
+            if (request.SalaryMax != null) listing.SalaryMax = request.SalaryMax.Value;
+
+            // Business rule verification following delta updates
+            if (listing.SalaryMin > listing.SalaryMax) 
+            {
+                throw new ArgumentException("SalaryMin must be less than or equal to SalaryMax");
+            }
+
+            if (request.ExpiresAt != null) 
+            {
+                if (request.ExpiresAt.Value <= DateTime.UtcNow) 
+                    throw new ArgumentException("ExpiresAt must be in the future");
+                listing.ExpiresAt = request.ExpiresAt.Value;
+            }
+
+            // Commit changes to PostgreSQL
+            await _context.SaveChangesAsync();
+            return listing;
+        }
     }
 }

@@ -2,6 +2,7 @@ using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Repositories; 
 using CareerHub.Api.Exceptions;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace CareerHub.Api.Services;
 
@@ -12,6 +13,7 @@ public class JobService : IJobService
     public JobService(IJobListingRepository repo)
     {
         _repo = repo;
+
     }
 
     public async Task<IEnumerable<JobResponse>> GetAllJobsAsync()
@@ -162,5 +164,71 @@ public class JobService : IJobService
     {
         // Executes your window-function analytic report safely mapped to its response record
         return await _repo.GetApplicationStatsAsync(companyId);
+    }
+
+    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(int page, int pageSize)
+    {
+        // Fetch items from repository
+        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(page, pageSize);
+
+        // 2. Map manually using LINQ Select (No AutoMapper needed!)
+        var itemResponses = items.Select(job => new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown" // Safely handle relationships
+        });
+
+        // Return envelope wrapper
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
+    }
+    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(JobListingFilterQuery filter)
+    {
+        // Pass the entire filter object down to your updated repository layer
+        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(filter);
+
+        // Perform manual LINQ matching 
+        var itemResponses = items.Select(job => new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown"
+        });
+
+        // Compute safe local variables to pass into the envelope constructor
+        int displayPage = filter.Page <= 0 ? 1 : filter.Page;
+        int displayPageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+
+        // Wrap everything back inside using the fallback display values
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, displayPage, displayPageSize);
+    }
+
+    public async Task<JobResponse> PatchJobAsync(Guid id, UpdateJobListingRequest request)
+    {
+        //  Send to repository layer
+        var updatedListing = await _repo.PatchAsync(id, request);
+
+        // Map domain model back into your unified JobResponse DTO
+        return new JobResponse
+        {
+            Id = updatedListing.Id,
+            Title = updatedListing.Title,
+            Description = updatedListing.Description,
+            Location = updatedListing.Location,
+            Type = updatedListing.Type,
+            PostedAt = updatedListing.PostedAt,
+            IsActive = updatedListing.IsActive,
+            Company = updatedListing.Company?.Name ?? "Unknown"
+        };
     }
 }

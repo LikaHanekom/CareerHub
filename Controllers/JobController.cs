@@ -2,45 +2,67 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Exceptions;
 using CareerHub.Api.Services;
 using CareerHub.Api.Models;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 namespace CareerHub.Api.Controllers;
 
 [ApiController]
-[Route("jobs")] 
+[Route("api/v{version:apiVersion}/jobs")]
+[ApiVersion("1.0")]
 public class JobController(IJobService jobService) : ControllerBase
 {
     private readonly IJobService _jobService = jobService;
 
     // ── 1. GET ALL JOBS (GET /jobs) ──────────────────────────────────
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<JobResponse>>> GetAllJobsAsync()
+    public async Task<ActionResult<PagedResponse<JobResponse>>> GetActiveJobs(
+       [FromQuery] JobListingFilterQuery filter)
     {
-        var response = await _jobService.GetAllJobsAsync();
-        return Ok(response);
-    }
+        // Pass the entire query parameter package to service layer 
+        var pagedEnvelope = await _jobService.GetActiveJobsAsync(filter);
 
+        // Write metadata tracking header out using  envelope data
+        Response.Headers.Append("X-Total-Count", pagedEnvelope.TotalCount.ToString());
+
+        // Return the smart math envelope payload
+        return Ok(pagedEnvelope);
+    }
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<JobResponse>> GetJobByIdAsync(Guid id)
+    public async Task<IActionResult> GetJobByIdAsync(Guid id) // 🚀 Changed to IActionResult
     {
+        // Fetch data payload via service tier
         var jobDetail = await _jobService.GetJobByIdAsync(id);
         if (jobDetail == null)
         {
             throw new JobNotFoundException(id);
         }
 
-        return Ok(jobDetail);
+        // Generate the structural execution fingerprint (ETag)
+        string rawEtag = $"{jobDetail.Id}:{jobDetail.PostedAt.Ticks}:{jobDetail.SalaryMin}"; 
+        string etag = $"\"{rawEtag}\""; // Standard HTTP double-quote wrappers
+
+        // Inbound request caching headers
+        if (Request.Headers.TryGetValue("If-None-Match", out var clientEtag) && clientEtag == etag) 
+        {
+            return StatusCode(StatusCodes.Status304NotModified); 
+        }
+
+        Response.Headers.ETag = etag; 
+        return Ok(jobDetail); 
     }
 
     // ── 3. POST /jobs (CREATE) ────────────────────────────────────────
     [Authorize(Roles = "Employer")]
     [HttpPost]
+    [EnableRateLimiting("post-listing")]
     public async Task<ActionResult<JobResponse>> CreateJobAsync([FromBody] CreateJobRequest request)
     {
         if (!ModelState.IsValid)
@@ -88,6 +110,7 @@ public class JobController(IJobService jobService) : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting("search")]
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         // One call straight down to the service layer
@@ -110,5 +133,13 @@ public class JobController(IJobService jobService) : ControllerBase
     {
         var reportData = await _jobService.GetCompanyApplicationStatsAsync(companyId);
         return Ok(reportData);
+    }
+
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Employer,Admin")] 
+    public async Task<ActionResult<JobResponse>> PatchJob(Guid id, [FromBody] UpdateJobListingRequest request)
+    {
+        var response = await _jobService.PatchJobAsync(id, request);
+        return Ok(response);
     }
 }

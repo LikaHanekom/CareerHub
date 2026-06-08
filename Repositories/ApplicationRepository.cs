@@ -61,7 +61,6 @@ public class ApplicationRepository : IApplicationRepository
     }
 
 
-    // 2. Returns the rapid true/false check
     public async Task<bool> HasAppliedCompiledAsync(Guid applicantId, Guid jobListingId)
     {
         var application = await _compiledHasAppliedQuery(_context, applicantId, jobListingId);

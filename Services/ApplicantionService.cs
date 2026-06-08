@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using CareerHub.Api.Data;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;
 using CareerHub.Api.Repositories; 
@@ -20,6 +22,7 @@ namespace CareerHub.Api.Services
         {
             _applicationRepo = applicationRepo;
             _jobRepo = jobRepo;
+            
         }
 
         public async Task<Application> SubmitApplicationAsync(ApplicationRequest request)
@@ -48,7 +51,6 @@ namespace CareerHub.Api.Services
             return application;
         }
 
-        
         public async Task UpdateStatusAsync(Guid applicantId, Guid jobListingId, ApplicationStatus newStatus)
         {
             var applications = await _applicationRepo.GetApplicationsForListingAsync(jobListingId);
@@ -85,10 +87,35 @@ namespace CareerHub.Api.Services
             await _applicationRepo.UpdateAsync(application);
         }
 
-        
         public bool IsValidTransition(ApplicationStatus currentStatus, ApplicationStatus targetStatus)
         {
             return ApplicationStatusValidator.IsValidTransition(currentStatus, targetStatus);
+        }
+
+        
+        public async Task<Application?> PartialUpdateStatusAsync(Guid id, UpdateStatusRequest request)
+        {
+            // Fetch using existing repository method instead of DbContext
+            var app = await _applicationRepo.GetApplicationByIdAsync(id); 
+            if (app == null) return null;
+
+            // Guard business state machine transitions explicitly
+            if ((app.Status == ApplicationStatus.Rejected || app.Status == ApplicationStatus.Offered) 
+                && request.Status == ApplicationStatus.Submitted) 
+            {
+                throw new ArgumentException("Illegal transition back to Submitted state once finalized."); 
+            }
+
+            // Apply changes and save via repository layer
+            app.Status = request.Status; 
+            await _applicationRepo.UpdateAsync(app); 
+
+            return app;
+        }
+        public async Task<Application?> GetApplicationByIdAsync(Guid id)
+        {
+            // Simply fetch the tracked application straight from your repository gate
+            return await _applicationRepo.GetApplicationByIdAsync(id);
         }
     }
 }

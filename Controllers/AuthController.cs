@@ -3,6 +3,7 @@ using CareerHub.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using Asp.Versioning;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,9 @@ using Microsoft.AspNetCore.Identity.Data;
 namespace CareerHub.Api.Controllers;
 
 [ApiController]//tells .NET this is a Web API controller. 
-[Route("api/auth")] // URL path to get to this controll;er
+[Route("api/v{version:apiVersion}/auth")]// URL path to get to this controll;er
+[ApiVersion("1.0")]
+ 
 public class AuthController : ControllerBase //.NETs built in controllerbase: gives controller access to standard API tools.
 {
      private readonly IAuthService _authService; //hold application config settigns

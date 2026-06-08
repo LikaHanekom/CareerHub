@@ -20,16 +20,15 @@ public class JobController(IJobService jobService) : ControllerBase
     // ── 1. GET ALL JOBS (GET /jobs) ──────────────────────────────────
     [HttpGet]
     public async Task<ActionResult<PagedResponse<JobResponse>>> GetActiveJobs(
-        [FromQuery] int page = 1, 
-        [FromQuery] int pageSize = 20)
+       [FromQuery] JobListingFilterQuery filter)
     {
-        //  Call your service layer 
-        var pagedEnvelope = await _jobService.GetActiveJobsAsync(page, pageSize);
+        // Pass the entire query parameter package to service layer 
+        var pagedEnvelope = await _jobService.GetActiveJobsAsync(filter);
 
-        // Write the metadata tracking header out
+        // Write metadata tracking header out using  envelope data
         Response.Headers.Append("X-Total-Count", pagedEnvelope.TotalCount.ToString());
 
-        // Return the smart math envelope 
+        // Return the smart math envelope payload
         return Ok(pagedEnvelope);
     }
     // ── 2. GET JOB BY ID (GET /jobs/{id}) ─────────────────────────────

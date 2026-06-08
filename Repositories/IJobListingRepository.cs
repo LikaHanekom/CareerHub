@@ -18,5 +18,7 @@ namespace CareerHub.Api.Repositories
 
         Task<IEnumerable<JobListingStatsResponse>> GetApplicationStatsAsync(Guid companyId);
         Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(int page, int pageSize);
+
+        Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(JobListingFilterQuery filter);
     }
 }

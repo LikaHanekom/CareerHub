@@ -160,5 +160,59 @@ namespace CareerHub.Api.Repositories
 
             return (items, totalCount);
         }
+
+        public async Task<(IEnumerable<JobListing> Items, int TotalCount)> GetActiveListingsPagedAsync(JobListingFilterQuery filter)
+        {
+            // Establish the query root 
+            var query = _context.JobListings.Where(j => j.IsActive).AsQueryable(); 
+
+            // Dynamically compose WHERE clauses on the expression tree
+            if (!string.IsNullOrWhiteSpace(filter.Location))
+            {
+                query = query.Where(j => EF.Functions.ILike(j.Location, $"%{filter.Location}%")); 
+            }
+
+            if (Enum.TryParse<JobType>(filter.EmploymentType, ignoreCase: true, out var parsedType))
+            {
+                query = query.Where(j => j.Type == parsedType); 
+            }
+
+            if (filter.SalaryMin.HasValue)
+            {
+                query = query.Where(j => j.SalaryMin >= filter.SalaryMin.Value); 
+            }
+
+            if (filter.SalaryMax.HasValue)
+            {
+                query = query.Where(j => j.SalaryMax <= filter.SalaryMax.Value); 
+            }
+
+            if (filter.CompanyId.HasValue)
+            {
+                query = query.Where(j => j.CompanyId == filter.CompanyId.Value); 
+            }
+
+            // Count matching rows before pagination
+            int totalCount = await query.CountAsync(); 
+
+            // Dynamic Sorting Evaluation 
+            bool isAscending = filter.Dir.Equals("asc", StringComparison.OrdinalIgnoreCase); 
+            
+            query = filter.Sort.ToLower() switch
+            {
+                "salarymin" => isAscending ? query.OrderBy(j => j.SalaryMin) : query.OrderByDescending(j => j.SalaryMin), 
+                "salarymax" => isAscending ? query.OrderBy(j => j.SalaryMax) : query.OrderByDescending(j => j.SalaryMax), 
+                "title"     => isAscending ? query.OrderBy(j => j.Title) : query.OrderByDescending(j => j.Title), 
+                _           => query.OrderByDescending(j => j.PostedAt) 
+            };
+
+            // Slice boundaries over the database using parameters inside the object
+            var items = await query
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync(); 
+
+            return (items, totalCount);
+        }
     }
 }

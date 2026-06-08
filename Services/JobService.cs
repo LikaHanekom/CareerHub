@@ -167,24 +167,45 @@ public class JobService : IJobService
     }
 
     public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(int page, int pageSize)
-{
-    // 1. Fetch the items from the repository
-    var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(page, pageSize);
-
-    // 2. Map manually using LINQ Select (No AutoMapper needed!)
-    var itemResponses = items.Select(job => new JobResponse
     {
-        Id = job.Id,
-        Title = job.Title,
-        Description = job.Description,
-        Location = job.Location,
-        Type = job.Type,
-        PostedAt = job.PostedAt,
-        IsActive = job.IsActive,
-        Company = job.Company?.Name ?? "Unknown" // Safely handle relationships
-    });
+        // Fetch items from repository
+        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(page, pageSize);
 
-    // 3. Return the envelope wrapper
-    return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
-}
+        // 2. Map manually using LINQ Select (No AutoMapper needed!)
+        var itemResponses = items.Select(job => new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown" // Safely handle relationships
+        });
+
+        // Return envelope wrapper
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
+    }
+    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(JobListingFilterQuery filter)
+    {
+        // Pass the entire filter object down to your updated repository layer
+        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(filter);
+
+        // Perform manual LINQ matching 
+        var itemResponses = items.Select(job => new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown"
+        });
+
+        // Wrap everything back inside 
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, filter.Page, filter.PageSize);
+    }
 }

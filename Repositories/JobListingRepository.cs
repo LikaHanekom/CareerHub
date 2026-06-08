@@ -47,7 +47,7 @@ namespace CareerHub.Api.Repositories
         public async Task AddAsync(JobListing listing)
         {
             await _context.JobListings.AddAsync(listing);
-            await _context.SaveChangesAsync(); // Handled internally [cite: 43]
+            await _context.SaveChangesAsync(); 
         }
 
         public async Task UpdateAsync(JobListing listing)
@@ -124,7 +124,7 @@ namespace CareerHub.Api.Repositories
 
         public async Task<IEnumerable<JobListingStatsResponse>> GetApplicationStatsAsync(Guid companyId)
         {
-        //Quards against SQL injection attacks
+        //uards against SQL injection attacks
         return await _context.Database.SqlQuery<JobListingStatsResponse>($@" 
             SELECT 
                 j.""Id"" AS ""JobId"",
@@ -135,7 +135,7 @@ namespace CareerHub.Api.Repositories
                 COUNT(a.""Id"") FILTER (WHERE a.""Status"" = 3)::int AS ""RejectedCount"",
                 COUNT(a.""Id"") FILTER (WHERE a.""Status"" = 4)::int AS ""OfferedCount"",
                 COUNT(a.""Id"")::int AS ""TotalApplications"",
-                RANK() OVER (ORDER BY COUNT(a.""Id"") DESC) AS ""Rank""
+                RANK() OVER (ORDER BY COUNT(a.""Id"") DESC) AS ""Rank"" 
             FROM job_listings j
             LEFT JOIN applications a ON j.""Id"" = a.""JobListingId""
             WHERE j.""CompanyId"" = {companyId}

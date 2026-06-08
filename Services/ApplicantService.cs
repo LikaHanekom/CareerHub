@@ -5,6 +5,7 @@ using CareerHub.Api.DTOs;
 using CareerHub.Api.Models;      
 using CareerHub.Api.Repositories; 
 using CareerHub.Api.Exceptions;   
+//no Microsoft.EntityFrameworkCore.
 
 namespace CareerHub.Api.Services
 {

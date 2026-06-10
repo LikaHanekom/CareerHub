@@ -466,3 +466,61 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 ***CI vs. Local:** A CI pipeline runs tests in a consistent, automated environment, whereas local tests run in an environment that may vary between developers.
 ***Catching Integration Failures:** A CI pipeline catches issues where code passes individually but fails when merged.
 ***The Merge Queue Problem:** In a team of four developers, all might pass local tests, but their combined changes can cause conflicts that only appear when merged. A CI pipeline forces these integrations to be validated before the code can reach the `main` branch.
+
+### 5. Test Coverage Analysis
+
+#### What Unit Tests Do Not Cover
+
+1. **HTTP Pipeline & Middleware** - Unit tests cannot verify that the `[Authorize]` attribute actually blocks unauthenticated requests, or that ETag headers are properly generated. These require integration tests with `WebApplicationFactory`.
+
+2. **Database Constraints** - Unit tests with mocks cannot verify that check constraints (`SalaryMax > SalaryMin`, `ExpiresAt > CreatedAt`) are actually enforced at the database level. These require repository tests with TestContainers.
+
+#### What Integration Tests Do Not Cover
+
+**Database-Specific Features** - Integration tests with `WebApplicationFactory` still run against a real database via TestContainers, but they cannot directly test that a `DbUpdateException` fires for constraint violations because they go through the full HTTP pipeline. These belong in the **Repository Tests** layer where we directly manipulate the DbContext.
+
+#### What TestContainers Tests Do Not Cover
+
+**Authentication/Authorization Logic** - Repository tests with TestContainers cannot verify that `[Authorize]` attributes work, JWT token validation succeeds, or that rate limiting middleware blocks excessive requests. These belong in the **Integration Tests** layer with `WebApplicationFactory`.
+
+### 6. What Each Test Layer Caught During Development
+
+| Test Layer | Bug It Would Have Caught |
+|------------|--------------------------|
+| **Unit Tests** | Removing the conditional guard in `PatchAsync` that validates salary range only when salary fields are present. Without the guard, updating just a title would incorrectly run salary validation. |
+| **Integration Tests** | Forgetting to add the `api-supported-versions` header middleware. The integration test verifies the header exists, which a unit test cannot detect. |
+| **Repository Tests** | Modifying the `HasAppliedAsync` compiled query with an incorrect WHERE clause (e.g., using `!=` instead of `==`). The repository test verifies the compiled query returns correct results against real PostgreSQL. |
+
+### 7. In-Memory Provider Limitations - Three Specific Features
+
+| Feature | Technical Limitation |
+|---------|---------------------|
+| **Check Constraints** | The in-memory provider ignores all database-level `CHECK` constraints because it doesn't parse or enforce SQL constraint syntax. Only a real relational database validates these. |
+| **Full-Text Search** | The in-memory provider doesn't support PostgreSQL-specific functions like `to_tsvector` or `to_tsquery`. These require actual PostgreSQL with GIN indexes. |
+| **Compiled Queries** | `EF.CompileAsyncQuery` translates expression trees to provider-specific SQL. The in-memory provider's translation differs from PostgreSQL's, potentially hiding bugs. |
+
+### 8. The `public partial class Program { }` Change
+
+**Why it's necessary:** Before .NET 6, the `Program` class was implicitly public. Starting with .NET 6's top-level statements, the `Program` class is generated as an internal class by default.
+
+**What it does:** Adding `public partial class Program { }` at the bottom of `Program.cs` makes the class `public` and `partial`, allowing the test project to reference it for `WebApplicationFactory<Program>`.
+
+**Production runtime impact:** This has NO effect on production behavior. It only changes the class visibility for testing. The `partial` keyword just indicates the class definition continues elsewhere (the generated portion).
+
+### 9. CI and the Merge Queue Problem
+
+**The Problem:** Four developers each pass CI on their feature branches, but when two branches are merged together, they conflict. For example:
+- Branch A changes `JobResponse` DTO property from `string` to `int`
+- Branch B adds a test that expects the old `string` type
+
+**Which GitHub setting fixes this:** "Require branches to be up to date before merging"
+
+**How it works:** This setting forces developers to merge the latest `main` branch into their feature branch before merging. CI then re-runs on the merged code, catching integration conflicts before they reach `main`.
+
+### 10. Test Naming Convention Examples
+
+| Test Name | Information Lost If Named "Test1" |
+|-----------|-----------------------------------|
+| `CreateAsync_WhenSalaryMaxLessThanSalaryMin_ThrowsInvalidSalaryException` | You wouldn't know it tests salary validation, the specific condition (Max < Min), or that it expects an exception. |
+| `UpdateStatusAsync_WhenTransitionIsIllegal_ThrowsInvalidStatusTransitionException` | You wouldn't know it tests status transitions, illegal transitions specifically, or what exception is expected. |
+| `GetActiveListingsPagedAsync_Page2_ReturnsDifferentRows` | You wouldn't know it tests pagination, page 2 specifically, or that it verifies no overlapping rows. |

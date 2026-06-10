@@ -212,3 +212,8 @@ finally
     // Ensures any buffered log statements are written out before the process exits
     Log.CloseAndFlush();
 }
+
+public partial class Program
+{
+    
+}

@@ -434,3 +434,113 @@ Why the apply policy uses a 60-minute window instead of a 60-second window
 
 What a real-world CareerHub deployment would use instead of IP-based rate limiting for the application submission endpoint 
 - A real-world deployment would use token-based tracking by extracting identifying information from the authenticated user's session or authorization header. Specifically, it would look at the unique User ID or Subject claim embedded inside the validated incoming JSON Web Token. This ensures that the rate limit follows the individual authenticated account rather than a shared network IP address.
+
+
+## Assignment 3.2: Testing Strategy
+
+### 1. Unit Test vs. Integration Test
+[cite_start]The following table outlines the testing strategy for specific CareerHub behaviors, identifying the appropriate test type and its limitations[cite: 23, 24].
+
+| Behavior | Test Type | Explanation |
+| :--- | :--- | :--- |
+| **Salary range validation** | Unit Test | Verifies business logic in isolation using NSubstitute. It cannot verify if the database would accept data if the service guard is bypassed. |
+| **[Authorize] attribute** | Integration Test | Verifies the HTTP pipeline and middleware. It cannot verify internal service logic without testing the controller/middleware interaction. |
+| **SalaryMax > SalaryMin constraint** | Repository Test | Must be tested against a real PostgreSQL container to verify database-level enforcement. A unit test cannot verify this as it does not interact with the database schema. |
+| **api-supported-versions header** | Integration Test | Verifies the full HTTP response envelope and versioning headers. A unit test cannot verify HTTP response headers or middleware. |
+| **HasAppliedAsync compiled query** | Repository Test | Must be verified against real PostgreSQL as the compiled expression tree is translated to SQL.A unit test cannot catch bugs in this SQL translation. |
+
+
+### 2. In-Memory EF Core Provider Limitations
+[cite_start]The EF Core in-memory provider is insufficient because it is not a relational database and skips critical SQL translation steps[cite: 31].
+
+***Check Constraints:** It cannot verify database-level constraints like `SalaryMin > 0` or `SalaryMax > SalaryMin` added in Assignment 2.4, as these are ignored by the in-memory provider.
+* **Compiled Queries:** It cannot verify the accuracy of the `HasAppliedAsync` compiled query, as it does not perform the necessary translation of expression trees into actual SQL.
+* **Full-Text Search:** It cannot test complex features like full-text search, which require specific database indexes and lexeme stemming not supported by the in-memory provider.
+
+### 3. Test Isolation
+***Definition:** A test is isolated when it runs independently without relying on the state or side effects of other tests. Isolation ensures that failures are caused by genuine bugs rather than "dirty" data left by previous tests.
+***The Shared Data Problem:** When repository tests share the same database rows and run in the wrong order, the second test may fail or pass erroneously due to unexpected data interference.
+***The Solution:** `TestContainers` provides a fresh database instance for tests. Per-test data seeding ensures each test starts with a known, predictable state.
+
+### 4. The Purpose of a CI Pipeline
+***CI vs. Local:** A CI pipeline runs tests in a consistent, automated environment, whereas local tests run in an environment that may vary between developers.
+***Catching Integration Failures:** A CI pipeline catches issues where code passes individually but fails when merged.
+***The Merge Queue Problem:** In a team of four developers, all might pass local tests, but their combined changes can cause conflicts that only appear when merged. A CI pipeline forces these integrations to be validated before the code can reach the `main` branch.
+
+### Part 7. Test Coverage Analysis
+
+#### What Unit Tests Do Not Cover
+
+1. **HTTP Pipeline & Middleware** - Unit tests cannot verify that the `[Authorize]` attribute actually blocks unauthenticated requests, or that ETag headers are properly generated. These require integration tests with `WebApplicationFactory`.
+
+2. **Database Constraints** - Unit tests with mocks cannot verify that check constraints (`SalaryMax > SalaryMin`, `ExpiresAt > CreatedAt`) are actually enforced at the database level. These require repository tests with TestContainers.
+
+#### What Integration Tests Do Not Cover
+
+**Database-Specific Features** - Integration tests with `WebApplicationFactory` still run against a real database via TestContainers, but they cannot directly test that a `DbUpdateException` fires for constraint violations because they go through the full HTTP pipeline. These belong in the **Repository Tests** layer where we directly manipulate the DbContext.
+
+#### What TestContainers Tests Do Not Cover
+
+**Authentication/Authorization Logic** - Repository tests with TestContainers cannot verify that `[Authorize]` attributes work, JWT token validation succeeds, or that rate limiting middleware blocks excessive requests. These belong in the **Integration Tests** layer with `WebApplicationFactory`.
+
+### 1. Test Pyramid for CareerHub
+| Layer | Test Count | What They Verify |
+|-------|------------|------------------|
+| **Unit Tests** | 40 | Service layer logic, validation rules, status transitions |
+| **Repository Tests** | 14 | Database constraints, compiled queries, full-text search, pagination |
+| **Integration Tests** | 12 | HTTP pipeline, authentication, ETags, API versioning headers |
+
+**Why Repository Tests have the most?** They verify critical database behaviors (check constraints, compiled queries, full-text search) that cannot be tested elsewhere and represent the core data integrity of the CareerHub system.
+
+        /\
+       /  \     ◀─── Integration Tests (HTTP Pipeline)
+      /====\         Count: 12 tests
+     /      \        (GetJobs, ETags, Auth, Versioning headers)
+    /========\   ◀─── Repository Tests (Database Layer)
+   /          \      Count: 14 tests
+  /            \     (Check constraints, full-text search, compiled queries)
+ /______________\ ◀─── Unit Tests (Service Layer)
+                     Count: 40 tests
+                     (Validation, status transitions, business logic)
+
+### 2. What Each Test Layer Caught During Development
+
+| Test Layer | Bug It Would Have Caught |
+|------------|--------------------------|
+| **Unit Tests** | Removing the conditional guard in `PatchAsync` that validates salary range only when salary fields are present. Without the guard, updating just a title would incorrectly run salary validation. |
+| **Integration Tests** | Forgetting to add the `api-supported-versions` header middleware. The integration test verifies the header exists, which a unit test cannot detect. |
+| **Repository Tests** | Modifying the `HasAppliedAsync` compiled query with an incorrect WHERE clause (e.g., using `!=` instead of `==`). The repository test verifies the compiled query returns correct results against real PostgreSQL. |
+
+### 3. In-Memory Provider Limitations - Three Specific Features
+
+| Feature | Technical Limitation |
+|---------|---------------------|
+| **Check Constraints** | The in-memory provider ignores all database-level `CHECK` constraints because it doesn't parse or enforce SQL constraint syntax. Only a real relational database validates these. |
+| **Full-Text Search** | The in-memory provider doesn't support PostgreSQL-specific functions like `to_tsvector` or `to_tsquery`. These require actual PostgreSQL with GIN indexes. |
+| **Compiled Queries** | `EF.CompileAsyncQuery` translates expression trees to provider-specific SQL. The in-memory provider's translation differs from PostgreSQL's, potentially hiding bugs. |
+
+### 4. The `public partial class Program { }` Change
+
+**Why it's necessary:** Before .NET 6, the `Program` class was implicitly public. Starting with .NET 6's top-level statements, the `Program` class is generated as an internal class by default.
+
+**What it does:** Adding `public partial class Program { }` at the bottom of `Program.cs` makes the class `public` and `partial`, allowing the test project to reference it for `WebApplicationFactory<Program>`.
+
+**Production runtime impact:** This has NO effect on production behavior. It only changes the class visibility for testing. The `partial` keyword just indicates the class definition continues elsewhere (the generated portion).
+
+### 5. CI and the Merge Queue Problem
+
+**The Problem:** Four developers each pass CI on their feature branches, but when two branches are merged together, they conflict. For example:
+- Branch A changes `JobResponse` DTO property from `string` to `int`
+- Branch B adds a test that expects the old `string` type
+
+**Which GitHub setting fixes this:** "Require branches to be up to date before merging"
+
+**How it works:** This setting forces developers to merge the latest `main` branch into their feature branch before merging. CI then re-runs on the merged code, catching integration conflicts before they reach `main`.
+
+### 6. Test Naming Convention Examples
+
+| Test Name | Information Lost If Named "Test1" |
+|-----------|-----------------------------------|
+| `CreateAsync_WhenSalaryMaxLessThanSalaryMin_ThrowsInvalidSalaryException` | You wouldn't know it tests salary validation, the specific condition (Max < Min), or that it expects an exception. |
+| `UpdateStatusAsync_WhenTransitionIsIllegal_ThrowsInvalidStatusTransitionException` | You wouldn't know it tests status transitions, illegal transitions specifically, or what exception is expected. |
+| `GetActiveListingsPagedAsync_Page2_ReturnsDifferentRows` | You wouldn't know it tests pagination, page 2 specifically, or that it verifies no overlapping rows. |

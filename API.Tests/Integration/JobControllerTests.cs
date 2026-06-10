@@ -203,7 +203,7 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
         
         // Second request with If-None-Match header
         var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/jobs/{jobId}");
-        request.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(etag));
+        request.Headers.IfNoneMatch.Add(EntityTagHeaderValue.Parse(etag));
         
         // Act
         var secondResponse = await _client.SendAsync(request);

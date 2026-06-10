@@ -27,8 +27,8 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj": {
-                "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj"
+              "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj": {
+                "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj"
               }
             }
           }
@@ -385,14 +385,14 @@
         }
       }
     },
-    "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj": {
+    "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj",
+        "projectUniqueName": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj",
         "projectName": "CareerHub.Api",
-        "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj",
+        "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj",
         "packagesPath": "C:\\Users\\alika\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\obj\\",
+        "outputPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\alika\\AppData\\Roaming\\NuGet\\NuGet.Config"

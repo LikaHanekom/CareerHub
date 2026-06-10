@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using Testcontainers.PostgreSql;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration; 
+using System.IO; 
 
 namespace API.Tests.Integration;
 
@@ -22,6 +24,21 @@ public class WebApplicationFactoryFixture : WebApplicationFactory<Program>, IAsy
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Add configuration for test environment
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            // Add test-specific appsettings
+            config.AddJsonFile("appsettings.Test.json", optional: true, reloadOnChange: false);
+            
+            // Or add in-memory configuration as fallback
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Key"] = "TestSecretKeyForIntegrationTests12345678901234567890",
+                ["Jwt:Issuer"] = "CareerHubTest",
+                ["Jwt:Audience"] = "CareerHubTest"
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             // Remove the real DbContext registration
@@ -44,7 +61,6 @@ public class WebApplicationFactoryFixture : WebApplicationFactory<Program>, IAsy
         });
         
         builder.UseEnvironment("Test");
-        
     }
 
     public async Task InitializeAsync()

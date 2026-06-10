@@ -13,6 +13,7 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
     private readonly PostgreSQLContainerFixture _fixture;
     private CareerHubDbContext _context = null!;
     private JobListingRepository _repository = null!;
+    private int _jobCounter = 0;
 
     public JobListingRepositoryTests(PostgreSQLContainerFixture fixture)
     {
@@ -56,6 +57,7 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
         {
             Id = Guid.NewGuid(),
             Name = name,
+            Website = "https://testcompany.com" //For tests
         };
         _context.Companies.Add(company);
         await _context.SaveChangesAsync();
@@ -71,11 +73,14 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
         DateTime? expiresAt = null,
         bool isActive = true)
     {
+        _jobCounter++;  
+        var uniqueTitle = $"{title} {_jobCounter}";  
+        
         var listing = new JobListing
         {
             Id = Guid.NewGuid(),
             CompanyId = company.Id,
-            Title = title,
+            Title = uniqueTitle,  
             Description = "Test Description",
             SalaryMin = salaryMin,
             SalaryMax = salaryMax,
@@ -148,9 +153,10 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
             DateTime.UtcNow.AddDays(-1)
         };
         
+        int counter = 1;
         foreach (var date in dates)
         {
-            await SeedJobListingAsync(company, "Job", 50000, 80000, date);
+            await SeedJobListingAsync(company, $"Job {counter++}", 50000, 80000, date);
         }
         
         // Act
@@ -260,6 +266,16 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
         var company = await SeedCompanyAsync();
         var listing = await SeedJobListingAsync(company);
         var applicantId = Guid.NewGuid();
+        
+        var applicant = new Applicant
+        {
+            Id = applicantId,
+            Email = "test@example.com",
+            FullName = "Test Applicant"
+            // Add other required properties
+        };
+        _context.Applicants.Add(applicant);
+        await _context.SaveChangesAsync();
         
         var application = new Application
         {
@@ -392,10 +408,19 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
         // Arrange
         var company = await SeedCompanyAsync();
         
-        await SeedJobListingAsync(company, "Remote Job", 50000, 80000, 
+        await SeedJobListingAsync(company, "Remote Job 1", 50000, 80000, 
             DateTime.UtcNow, DateTime.UtcNow.AddDays(30), true);
-        await SeedJobListingAsync(company, "Office Job", 60000, 90000, 
+        await SeedJobListingAsync(company, "Office Job 1", 60000, 90000, 
             DateTime.UtcNow, DateTime.UtcNow.AddDays(30), true);
+        
+        // Update the location for the office job
+        var allJobs = _context.JobListings.Where(j => j.CompanyId == company.Id).ToList();
+        var officeJob = allJobs.FirstOrDefault(j => j.Title.Contains("Office"));
+        if (officeJob != null)
+        {
+            officeJob.Location = "New York";
+            await _context.SaveChangesAsync();
+        }
         
         var filter = new JobListingFilterQuery
         {
@@ -409,7 +434,7 @@ public class JobListingRepositoryTests : IClassFixture<PostgreSQLContainerFixtur
 
         // Assert
         Assert.Single(items);
-        Assert.Contains(items, j => j.Location == "Remote");
+        Assert.All(items, j => Assert.Equal("Remote", j.Location));
     }
 
     [Fact]

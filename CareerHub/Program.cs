@@ -70,8 +70,22 @@ try
     builder.Services.AddControllers();
 
     //Builder.config, tool to read configuration settings
-    var jwtKey = builder.Configuration["Jwt:Key"]; //goes to fetch a secret configuration from the app confic files.
-    var key = Encoding.UTF8.GetBytes(jwtKey!);// translation
+    var jwtKey = builder.Configuration["Jwt:Key"];
+
+    if (string.IsNullOrEmpty(jwtKey))
+    {
+        if (builder.Environment.IsEnvironment("Test") || builder.Environment.IsDevelopment())
+        {
+            jwtKey = "TestSecretKeyForIntegrationTests12345678901234567890";
+            Console.WriteLine($" Test/Dev environment: Using fallback JWT key (32+ chars)");
+        }
+        else
+        {
+            throw new InvalidOperationException("JWT Key is not configured. Please add 'Jwt:Key' to appsettings.json");
+        }
+    }
+
+    var key = Encoding.UTF8.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)

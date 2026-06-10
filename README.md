@@ -467,7 +467,7 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 ***Catching Integration Failures:** A CI pipeline catches issues where code passes individually but fails when merged.
 ***The Merge Queue Problem:** In a team of four developers, all might pass local tests, but their combined changes can cause conflicts that only appear when merged. A CI pipeline forces these integrations to be validated before the code can reach the `main` branch.
 
-### 5. Test Coverage Analysis
+### Part 7. Test Coverage Analysis
 
 #### What Unit Tests Do Not Cover
 
@@ -483,7 +483,27 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 
 **Authentication/Authorization Logic** - Repository tests with TestContainers cannot verify that `[Authorize]` attributes work, JWT token validation succeeds, or that rate limiting middleware blocks excessive requests. These belong in the **Integration Tests** layer with `WebApplicationFactory`.
 
-### 6. What Each Test Layer Caught During Development
+### 1. Test Pyramid for CareerHub
+| Layer | Test Count | What They Verify |
+|-------|------------|------------------|
+| **Unit Tests** | 40 | Service layer logic, validation rules, status transitions |
+| **Repository Tests** | 14 | Database constraints, compiled queries, full-text search, pagination |
+| **Integration Tests** | 12 | HTTP pipeline, authentication, ETags, API versioning headers |
+
+**Why Repository Tests have the most?** They verify critical database behaviors (check constraints, compiled queries, full-text search) that cannot be tested elsewhere and represent the core data integrity of the CareerHub system.
+
+        /\
+       /  \     ◀─── Integration Tests (HTTP Pipeline)
+      /====\         Count: 12 tests
+     /      \        (GetJobs, ETags, Auth, Versioning headers)
+    /========\   ◀─── Repository Tests (Database Layer)
+   /          \      Count: 14 tests
+  /            \     (Check constraints, full-text search, compiled queries)
+ /______________\ ◀─── Unit Tests (Service Layer)
+                     Count: 40 tests
+                     (Validation, status transitions, business logic)
+
+### 2. What Each Test Layer Caught During Development
 
 | Test Layer | Bug It Would Have Caught |
 |------------|--------------------------|
@@ -491,7 +511,7 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 | **Integration Tests** | Forgetting to add the `api-supported-versions` header middleware. The integration test verifies the header exists, which a unit test cannot detect. |
 | **Repository Tests** | Modifying the `HasAppliedAsync` compiled query with an incorrect WHERE clause (e.g., using `!=` instead of `==`). The repository test verifies the compiled query returns correct results against real PostgreSQL. |
 
-### 7. In-Memory Provider Limitations - Three Specific Features
+### 3. In-Memory Provider Limitations - Three Specific Features
 
 | Feature | Technical Limitation |
 |---------|---------------------|
@@ -499,7 +519,7 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 | **Full-Text Search** | The in-memory provider doesn't support PostgreSQL-specific functions like `to_tsvector` or `to_tsquery`. These require actual PostgreSQL with GIN indexes. |
 | **Compiled Queries** | `EF.CompileAsyncQuery` translates expression trees to provider-specific SQL. The in-memory provider's translation differs from PostgreSQL's, potentially hiding bugs. |
 
-### 8. The `public partial class Program { }` Change
+### 4. The `public partial class Program { }` Change
 
 **Why it's necessary:** Before .NET 6, the `Program` class was implicitly public. Starting with .NET 6's top-level statements, the `Program` class is generated as an internal class by default.
 
@@ -507,7 +527,7 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 
 **Production runtime impact:** This has NO effect on production behavior. It only changes the class visibility for testing. The `partial` keyword just indicates the class definition continues elsewhere (the generated portion).
 
-### 9. CI and the Merge Queue Problem
+### 5. CI and the Merge Queue Problem
 
 **The Problem:** Four developers each pass CI on their feature branches, but when two branches are merged together, they conflict. For example:
 - Branch A changes `JobResponse` DTO property from `string` to `int`
@@ -517,7 +537,7 @@ What a real-world CareerHub deployment would use instead of IP-based rate limiti
 
 **How it works:** This setting forces developers to merge the latest `main` branch into their feature branch before merging. CI then re-runs on the merged code, catching integration conflicts before they reach `main`.
 
-### 10. Test Naming Convention Examples
+### 6. Test Naming Convention Examples
 
 | Test Name | Information Lost If Named "Test1" |
 |-----------|-----------------------------------|

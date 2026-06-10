@@ -2,13 +2,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x 
 
+      # Tell GitHub to go INTO the folder where your .csproj is
       - name: Restore dependencies
         working-directory: ./CareerHub
         run: dotnet restore
@@ -17,6 +17,7 @@ jobs:
         working-directory: ./CareerHub
         run: dotnet build --configuration Release
 
+      # Tell GitHub to go INTO your test folder
       - name: Test
         working-directory: ./API.Tests
         run: dotnet test

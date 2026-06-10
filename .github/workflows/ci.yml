@@ -1,30 +1,25 @@
-name: CareerHub CI Pipeline
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
 jobs:
-  build-and-test:
-    name: Build & Test CareerHub API
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Setup .NET SDK
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
-      
+          dotnet-version: 8.0.x
+
+      # Step 1: Restore dependencies inside the CareerHub folder
       - name: Restore dependencies
+        working-directory: ./CareerHub
         run: dotnet restore
-      
-      - name: Build solution
-        run: dotnet build --no-restore --configuration Release
-      
-      - name: Run all tests
-        run: dotnet test --no-build --configuration Release --verbosity normal
+
+      # Step 2: Build the project inside the CareerHub folder
+      - name: Build
+        working-directory: ./CareerHub
+        run: dotnet build --configuration Release
+
+      # Step 3: Run tests in the API.Tests folder
+      - name: Test
+        working-directory: ./API.Tests
+        run: dotnet test

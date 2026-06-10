@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/CAREERHUB/">
-    <Project Path="CAREERHUB/CareerHub.Api.csproj" />
-  </Folder>
-  <Project Path="API.Tests/API.Tests.csproj" />
-</Solution>

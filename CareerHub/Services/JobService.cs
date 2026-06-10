@@ -2,18 +2,26 @@ using CareerHub.Api.Models;
 using CareerHub.Api.DTOs;
 using CareerHub.Api.Repositories; 
 using CareerHub.Api.Exceptions;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace CareerHub.Api.Services;
 
 public class JobService : IJobService
 {
     private readonly IJobListingRepository _repo;
+    private readonly ICompanyRepository? _companyRepo; // Optional for backward compatibility
 
+    // Original constructor - keeps existing code working
     public JobService(IJobListingRepository repo)
     {
         _repo = repo;
+        _companyRepo = null;
+    }
 
+    // New constructor for tests and future use
+    public JobService(IJobListingRepository repo, ICompanyRepository companyRepo)
+    {
+        _repo = repo;
+        _companyRepo = companyRepo;
     }
 
     public async Task<IEnumerable<JobResponse>> GetAllJobsAsync()
@@ -22,23 +30,22 @@ public class JobService : IJobService
 
         var response = new List<JobResponse>();
     
-    foreach (var job in jobs)
-    {
-        response.Add(new JobResponse
+        foreach (var job in jobs)
         {
-            Id = job.Id,
-            Title = job.Title,
-            Description = job.Description,
-            Location = job.Location,
-            Type = job.Type,
-            PostedAt = job.PostedAt,
-            IsActive = job.IsActive,
-            
-            Company = job.Company?.Name ?? "Unknown" 
-        });
-    }
+            response.Add(new JobResponse
+            {
+                Id = job.Id,
+                Title = job.Title,
+                Description = job.Description,
+                Location = job.Location,
+                Type = job.Type,
+                PostedAt = job.PostedAt,
+                IsActive = job.IsActive,
+                Company = job.Company?.Name ?? "Unknown" 
+            });
+        }
     
-    return response;
+        return response;
     }
 
     public async Task<JobResponse?> GetJobByIdAsync(Guid id)
@@ -59,19 +66,35 @@ public class JobService : IJobService
         };
     }
 
-    
     public async Task<bool> ExistsAsync(string title, Guid companyId)
     {
-        // Delegate the database check entirely to the repository layer
         return await _repo.DoesListingExistAsync(title, companyId);
     }
 
     public async Task<JobResponse> CreateJobAsync(CreateJobRequest request)
     {
-        // Use the check right here to enforce your duplicate business rule!
-        var duplicate = await _repo.DoesListingExistAsync(request.Title, request.CompanyId);
-        if (duplicate) throw new DuplicateJobListingException(request.Title);
+        // 1. Validate company exists (if company repository is available)
+        if (_companyRepo != null)
+        {
+            var company = await _companyRepo.GetCompanyByIdAsync(request.CompanyId);
+            if (company == null)
+                throw new CompanyNotFoundException(request.CompanyId);
+        }
 
+        // 2. Validate salary range
+        if (request.SalaryMax < request.SalaryMin)
+            throw new InvalidSalaryException("Salary maximum cannot be less than salary minimum.");
+
+        // 3. Validate expiration date
+        if (request.ExpiresAt <= DateTime.UtcNow)
+            throw new InvalidListingException("Expiration date must be in the future.");
+
+        // 4. Check for duplicates
+        var duplicate = await _repo.DoesListingExistAsync(request.Title, request.CompanyId);
+        if (duplicate) 
+            throw new DuplicateJobListingException(request.Title);
+
+        // 5. Create the new job with ALL fields
         var newJob = new JobListing
         {
             Id = Guid.NewGuid(),
@@ -80,11 +103,22 @@ public class JobService : IJobService
             Location = request.Location,
             Description = request.Description,
             Type = request.Type,
+            SalaryMin = request.SalaryMin,
+            SalaryMax = request.SalaryMax,
+            ExpiresAt = request.ExpiresAt,
             PostedAt = DateTime.UtcNow, 
             IsActive = true            
         };
 
         await _repo.AddAsync(newJob);
+
+        // Get company name for response if available
+        string companyName = "Unknown";
+        if (_companyRepo != null)
+        {
+            var company = await _companyRepo.GetCompanyByIdAsync(request.CompanyId);
+            companyName = company?.Name ?? "Unknown";
+        }
 
         return new JobResponse 
         {
@@ -93,8 +127,12 @@ public class JobService : IJobService
             Location = newJob.Location,
             Description = newJob.Description,
             Type = newJob.Type,
+            SalaryMin = newJob.SalaryMin,
+            SalaryMax = newJob.SalaryMax,
+            ExpiresAt = newJob.ExpiresAt,
             PostedAt = newJob.PostedAt,
-            IsActive = newJob.IsActive
+            IsActive = newJob.IsActive,
+            Company = companyName
         };
     }
 
@@ -122,8 +160,12 @@ public class JobService : IJobService
             Location = job.Location,
             Description = job.Description,
             Type = job.Type,
+            SalaryMin = job.SalaryMin,
+            SalaryMax = job.SalaryMax,
+            ExpiresAt = job.ExpiresAt,
             PostedAt = job.PostedAt,
-            IsActive = job.IsActive
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown"
         };
     }
 
@@ -140,7 +182,6 @@ public class JobService : IJobService
     {
         var jobs = await _repo.SearchAsync(searchTerm);
 
-        // Map domain models to JobResponse
         return jobs.Select(j => new JobResponse
         {
             Id = j.Id,
@@ -150,49 +191,24 @@ public class JobService : IJobService
             Type = j.Type,
             PostedAt = j.PostedAt,
             ExpiresAt = j.ExpiresAt,
-            CompanyId = j.CompanyId
+            CompanyId = j.CompanyId,
         });
     }
 
     public IAsyncEnumerable<JobListing> GetCompanyJobsCompiledAsync(Guid companyId)
     {
-        // Straight execution delegation down into your pre-compiled expression tree field
         return _repo.GetListingsByCompanyCompiled(companyId);
     }
 
     public async Task<IEnumerable<JobListingStatsResponse>> GetCompanyApplicationStatsAsync(Guid companyId)
     {
-        // Executes your window-function analytic report safely mapped to its response record
         return await _repo.GetApplicationStatsAsync(companyId);
     }
 
     public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(int page, int pageSize)
     {
-        // Fetch items from repository
         var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(page, pageSize);
 
-        // 2. Map manually using LINQ Select (No AutoMapper needed!)
-        var itemResponses = items.Select(job => new JobResponse
-        {
-            Id = job.Id,
-            Title = job.Title,
-            Description = job.Description,
-            Location = job.Location,
-            Type = job.Type,
-            PostedAt = job.PostedAt,
-            IsActive = job.IsActive,
-            Company = job.Company?.Name ?? "Unknown" // Safely handle relationships
-        });
-
-        // Return envelope wrapper
-        return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
-    }
-    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(JobListingFilterQuery filter)
-    {
-        // Pass the entire filter object down to your updated repository layer
-        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(filter);
-
-        // Perform manual LINQ matching 
         var itemResponses = items.Select(job => new JobResponse
         {
             Id = job.Id,
@@ -205,20 +221,52 @@ public class JobService : IJobService
             Company = job.Company?.Name ?? "Unknown"
         });
 
-        // Compute safe local variables to pass into the envelope constructor
+        return new PagedResponse<JobResponse>(itemResponses, totalCount, page, pageSize);
+    }
+
+    public async Task<PagedResponse<JobResponse>> GetActiveJobsAsync(JobListingFilterQuery filter)
+    {
+        var (items, totalCount) = await _repo.GetActiveListingsPagedAsync(filter);
+
+        var itemResponses = items.Select(job => new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Location = job.Location,
+            Type = job.Type,
+            PostedAt = job.PostedAt,
+            IsActive = job.IsActive,
+            Company = job.Company?.Name ?? "Unknown"
+        });
+
         int displayPage = filter.Page <= 0 ? 1 : filter.Page;
         int displayPageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
 
-        // Wrap everything back inside using the fallback display values
         return new PagedResponse<JobResponse>(itemResponses, totalCount, displayPage, displayPageSize);
     }
 
     public async Task<JobResponse> PatchJobAsync(Guid id, UpdateJobListingRequest request)
     {
-        //  Send to repository layer
+        // 1. Get existing listing
+        var existingListing = await _repo.GetByIdAsync(id);
+        if (existingListing == null)
+             throw new JobNotFoundException(id);
+
+        // 2. Validate salary if either salary field is being updated
+        if (request.SalaryMin.HasValue || request.SalaryMax.HasValue)
+        {
+            var newMin = request.SalaryMin ?? existingListing.SalaryMin;
+            var newMax = request.SalaryMax ?? existingListing.SalaryMax;
+            
+            if (newMax < newMin)
+                throw new InvalidSalaryException("Salary maximum cannot be less than salary minimum.");
+        }
+
+        // 3. Send to repository layer for patching
         var updatedListing = await _repo.PatchAsync(id, request);
 
-        // Map domain model back into your unified JobResponse DTO
+        // 4. Map domain model back into your unified JobResponse DTO
         return new JobResponse
         {
             Id = updatedListing.Id,
@@ -226,6 +274,9 @@ public class JobService : IJobService
             Description = updatedListing.Description,
             Location = updatedListing.Location,
             Type = updatedListing.Type,
+            SalaryMin = updatedListing.SalaryMin,
+            SalaryMax = updatedListing.SalaryMax,
+            ExpiresAt = updatedListing.ExpiresAt,
             PostedAt = updatedListing.PostedAt,
             IsActive = updatedListing.IsActive,
             Company = updatedListing.Company?.Name ?? "Unknown"

@@ -18,7 +18,7 @@ public class JobListingServiceTests
     {
         _repository = Substitute.For<IJobListingRepository>();
         _companyRepository = Substitute.For<ICompanyRepository>();
-        _sut = new JobService(_repository);
+        _sut = new JobService(_repository, _companyRepository);
     }
 
     [Fact]
@@ -31,11 +31,13 @@ public class JobListingServiceTests
             CompanyId = companyId,
             Title = "Software Engineer",
             SalaryMin = 80000,
-            SalaryMax = 50000, // Invalid: Max < Min
+            SalaryMax = 50000,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         
-        _companyRepository.GetCompanyByIdAsync(companyId).Returns(new Company { Id = companyId });
+        // FIX: Return a Company? type (nullable)
+        _companyRepository.GetCompanyByIdAsync(companyId)
+            .Returns(Task.FromResult<Company?>(new Company { Id = companyId, Name = "Test Company" }));
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidSalaryException>(() => _sut.CreateJobAsync(request));
@@ -46,16 +48,19 @@ public class JobListingServiceTests
     public async Task CreateAsync_WhenExpiresAtIsInThePast_ThrowsInvalidListingException()
     {
         // Arrange
+        var companyId = Guid.NewGuid();
         var request = new CreateJobRequest
         {
-            CompanyId = Guid.NewGuid(),
+            CompanyId = companyId,
             Title = "Software Engineer",
             SalaryMin = 50000,
             SalaryMax = 80000,
-            ExpiresAt = DateTime.UtcNow.AddDays(-1) // Past date
+            ExpiresAt = DateTime.UtcNow.AddDays(-1)
         };
         
-        _companyRepository.GetCompanyByIdAsync(request.CompanyId).Returns(new Company());
+        // Return a Company? type (nullable)
+        _companyRepository.GetCompanyByIdAsync(request.CompanyId)
+            .Returns(Task.FromResult<Company?>(new Company { Id = companyId, Name = "Test Company" }));
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidListingException>(() => _sut.CreateJobAsync(request));
@@ -77,13 +82,23 @@ public class JobListingServiceTests
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         
-        _companyRepository.GetCompanyByIdAsync(companyId).Returns(new Company { Id = companyId });
+        //  Return Company? type
+        _companyRepository.GetCompanyByIdAsync(companyId)
+            .Returns(Task.FromResult<Company?>(new Company { Id = companyId, Name = "Test Company" }));
+        
+        _repository.DoesListingExistAsync(request.Title, companyId)
+            .Returns(Task.FromResult(false));
 
         // Act
-        await _sut.CreateJobAsync(request);
+        var result = await _sut.CreateJobAsync(request);
 
         // Assert
-        await _repository.Received(1).AddAsync(Arg.Any<JobListing>());
+        await _repository.Received(1).AddAsync(Arg.Is<JobListing>(listing =>
+            listing.Title == request.Title &&
+            listing.CompanyId == request.CompanyId &&
+            listing.SalaryMin == request.SalaryMin &&
+            listing.SalaryMax == request.SalaryMax
+        ));
     }
 
     [Fact]
@@ -99,16 +114,18 @@ public class JobListingServiceTests
             Title = "Old Title"
         };
         
-        var patchRequest = new UpdateJobListingRequest // Fixed: Changed to UpdateJobListingRequest
+        var patchRequest = new UpdateJobListingRequest
         {
-            SalaryMin = 90000 // Would exceed existing SalaryMax
+            SalaryMin = 90000
         };
         
-        _repository.GetByIdAsync(listingId).Returns(existingListing);
+        // FIX: Return JobListing? type (nullable)
+        _repository.GetByIdAsync(listingId).Returns(Task.FromResult<JobListing?>(existingListing));
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidSalaryException>(() => 
             _sut.PatchJobAsync(listingId, patchRequest));
+        
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<JobListing>());
     }
 
@@ -125,18 +142,30 @@ public class JobListingServiceTests
             Title = "Old Title"
         };
         
-        var patchRequest = new UpdateJobListingRequest // Fixed: Changed to UpdateJobListingRequest
+        var patchRequest = new UpdateJobListingRequest
         {
-            Title = "New Title" // Only title changed, no salary fields
+            Title = "New Title"
         };
         
-        _repository.GetByIdAsync(listingId).Returns(existingListing);
+        // FIX: Return JobListing? type
+        _repository.GetByIdAsync(listingId).Returns(Task.FromResult<JobListing?>(existingListing));
+        
+        var updatedListing = new JobListing
+        {
+            Id = listingId,
+            SalaryMin = 50000,
+            SalaryMax = 80000,
+            Title = "New Title"
+        };
+        _repository.PatchAsync(listingId, patchRequest).Returns(Task.FromResult(updatedListing));
 
         // Act
-        await _sut.PatchJobAsync(listingId, patchRequest);
+        var result = await _sut.PatchJobAsync(listingId, patchRequest);
 
         // Assert
-        await _repository.Received(1).UpdateAsync(Arg.Any<JobListing>());
+        Assert.NotNull(result);
+        Assert.Equal("New Title", result.Title);
+        await _repository.Received(1).PatchAsync(listingId, patchRequest);
     }
 
     [Fact]
@@ -144,11 +173,46 @@ public class JobListingServiceTests
     {
         // Arrange
         var listingId = Guid.NewGuid();
-        _repository.GetByIdAsync(listingId).Returns((JobListing)null);
+        var patchRequest = new UpdateJobListingRequest
+        {
+            Title = "New Title"
+        };
+        
+        // FIX: Return null as JobListing? type
+        _repository.GetByIdAsync(listingId).Returns(Task.FromResult<JobListing?>(null));
 
         // Act & Assert
         await Assert.ThrowsAsync<JobNotFoundException>(() => 
-            _sut.PatchJobAsync(listingId, Arg.Any<UpdateJobListingRequest>()));
+            _sut.PatchJobAsync(listingId, patchRequest));
+        
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<JobListing>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenDuplicateListing_ThrowsDuplicateJobListingException()
+    {
+        // Arrange
+        var companyId = Guid.NewGuid();
+        var request = new CreateJobRequest
+        {
+            CompanyId = companyId,
+            Title = "Duplicate Job",
+            Description = "This job already exists",
+            SalaryMin = 50000,
+            SalaryMax = 80000,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+        
+        _companyRepository.GetCompanyByIdAsync(companyId)
+            .Returns(Task.FromResult<Company?>(new Company { Id = companyId, Name = "Test Company" }));
+        
+        _repository.DoesListingExistAsync(request.Title, companyId)
+            .Returns(Task.FromResult(true));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<DuplicateJobListingException>(() => 
+            _sut.CreateJobAsync(request));
+        
+        await _repository.DidNotReceive().AddAsync(Arg.Any<JobListing>());
     }
 }

@@ -157,7 +157,7 @@ public class ApplicationServiceTests
         _applicationRepository.HasApplicantAlreadyAppliedAsync(request.ApplicantId, request.JobListingId)
             .Returns(false);
         
-        Application capturedApplication = null;
+        Application? capturedApplication = null;
         await _applicationRepository.AddAsync(Arg.Do<Application>(app => capturedApplication = app));
 
         // Act
@@ -179,7 +179,7 @@ public class ApplicationServiceTests
         var requestingApplicantId = Guid.NewGuid();
         
         _applicationRepository.GetApplicationByIdAsync(applicationId)
-            .Returns((Application)null);
+            .Returns(Task.FromResult<Application?>(null));
 
         // Act & Assert
         await Assert.ThrowsAsync<ApplicationNotFoundException>(() => 
@@ -201,7 +201,8 @@ public class ApplicationServiceTests
             Status = ApplicationStatus.Submitted
         };
         
-        _applicationRepository.GetApplicationByIdAsync(applicationId).Returns(application);
+        _applicationRepository.GetApplicationByIdAsync(applicationId)
+            .Returns(Task.FromResult<Application?>(application));
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => 
@@ -224,7 +225,8 @@ public class ApplicationServiceTests
             Status = ApplicationStatus.Submitted
         };
         
-        _applicationRepository.GetApplicationByIdAsync(applicationId).Returns(application);
+        _applicationRepository.GetApplicationByIdAsync(applicationId)
+            .Returns(Task.FromResult<Application?>(application));
 
         // Act
         await _sut.WithdrawApplicationAsync(applicationId, applicantId);

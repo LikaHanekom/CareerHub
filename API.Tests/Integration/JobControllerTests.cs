@@ -55,7 +55,7 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
         // Assert
         Assert.True(response.Headers.Contains("X-Total-Count"));
         
-        // Optional: Verify it's a valid integer
+        // Verify it's a valid integer
         var totalCountHeader = response.Headers.GetValues("X-Total-Count").First();
         Assert.True(int.TryParse(totalCountHeader, out _));
     }
@@ -70,6 +70,18 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
         Assert.True(response.Headers.Contains("api-supported-versions"));
         var versions = response.Headers.GetValues("api-supported-versions").First();
         Assert.Contains("1.0", versions);
+    }
+
+    [Fact]
+    public async Task GetJobs_WithoutVersion_ReturnsSameStatusAsV1()
+    {
+        // Act
+        var noVersionResponse = await _client.GetAsync("/api/jobs");
+        var v1Response = await _client.GetAsync("/api/v1/jobs");
+
+        // Assert
+        Assert.Equal(noVersionResponse.StatusCode, v1Response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, noVersionResponse.StatusCode);
     }
 
     [Fact]
@@ -101,8 +113,6 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task PostApplication_WithoutToken_Returns401()
     {
-        // Note: This test assumes there's an ApplicationsController
-        // If not, you might want to remove or modify this test
         var applicationData = new ApplicationRequest
         {
             JobListingId = Guid.NewGuid(),
@@ -114,26 +124,42 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
             Encoding.UTF8,
             "application/json");
 
-        // Act - Adjust the endpoint based on your actual applications endpoint
         var response = await _client.PostAsync("/api/v1/applications", content);
         
-        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobById_WithValidId_DoesNotReturn500()
     {
-        // First, get all jobs to find a valid ID
         var getAllResponse = await _client.GetAsync("/api/v1/jobs");
         var content = await getAllResponse.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Skip test if no data exists
         if (pagedResponse == null || !pagedResponse.Data.Any())
         {
-            // Option 1: Skip the test
             Assert.True(true, "No job data available to test with");
+            return;
+        }
+        
+        var jobId = pagedResponse.Data.First().Id;
+        
+        var response = await _client.GetAsync($"/api/v1/jobs/{jobId}");
+        
+        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetJobById_ResponseIncludesETagHeader()
+    {
+        // First, get a job to test with
+        var getAllResponse = await _client.GetAsync("/api/v1/jobs");
+        var content = await getAllResponse.Content.ReadAsStringAsync();
+        var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
+        
+        if (pagedResponse == null || !pagedResponse.Data.Any())
+        {
+            Assert.True(true, "No job data available to test ETag header");
             return;
         }
         
@@ -143,18 +169,65 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
         var response = await _client.GetAsync($"/api/v1/jobs/{jobId}");
         
         // Assert
-        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.Contains("ETag"));
+        var etag = response.Headers.GetValues("ETag").FirstOrDefault();
+        Assert.NotNull(etag);
+        Assert.NotEmpty(etag);
+        // ETag should be wrapped in quotes per RFC 7232
+        Assert.True(etag.StartsWith("\"") && etag.EndsWith("\""), "ETag should be quoted");
+    }
+
+    [Fact]
+    public async Task GetJobById_WithMatchingETag_Returns304()
+    {
+        // First, get a job to test with
+        var getAllResponse = await _client.GetAsync("/api/v1/jobs");
+        var content = await getAllResponse.Content.ReadAsStringAsync();
+        var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
+        
+        if (pagedResponse == null || !pagedResponse.Data.Any())
+        {
+            Assert.True(true, "No job data available to test ETag 304 response");
+            return;
+        }
+        
+        var jobId = pagedResponse.Data.First().Id;
+        
+        // First request to get ETag
+        var firstResponse = await _client.GetAsync($"/api/v1/jobs/{jobId}");
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        
+        var etag = firstResponse.Headers.GetValues("ETag").FirstOrDefault();
+        Assert.NotNull(etag);
+        
+        // Second request with If-None-Match header
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/jobs/{jobId}");
+        request.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(etag));
+        
+        // Act
+        var secondResponse = await _client.SendAsync(request);
+        
+        // Assert
+        Assert.Equal(HttpStatusCode.NotModified, secondResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetJobById_WithInvalidId_ReturnsNotFound()
+    {
+        var invalidId = Guid.NewGuid();
+        var response = await _client.GetAsync($"/api/v1/jobs/{invalidId}");
+        
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobs_WithPagination_ReturnsCorrectPage()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=2&pageSize=3");
         var content = await response.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Assert
         Assert.NotNull(pagedResponse);
         Assert.Equal(2, pagedResponse.Page);
         Assert.Equal(3, pagedResponse.PageSize);
@@ -163,12 +236,10 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task GetJobs_CalculatesTotalPagesCorrectly()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=1&pageSize=2");
         var content = await response.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Assert
         Assert.NotNull(pagedResponse);
         var expectedTotalPages = (int)Math.Ceiling(pagedResponse.TotalCount / (double)pagedResponse.PageSize);
         Assert.Equal(expectedTotalPages, pagedResponse.TotalPages);
@@ -177,14 +248,11 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task GetJobs_SetsHasNextPageCorrectly()
     {
-        // Act - Request page 1 with small page size
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=1&pageSize=2");
         var content = await response.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Assert
         Assert.NotNull(pagedResponse);
-        // If total count > pageSize, should have next page
         if (pagedResponse.TotalCount > pagedResponse.PageSize)
         {
             Assert.True(pagedResponse.HasNextPage);
@@ -198,14 +266,11 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task GetJobs_SetsHasPreviousPageCorrectly()
     {
-        // Act - Request page 2 (if enough data exists)
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=2&pageSize=2");
         var content = await response.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Assert
         Assert.NotNull(pagedResponse);
-        // Page 2 should have previous page if total pages >= 2
         if (pagedResponse.TotalPages >= 2)
         {
             Assert.True(pagedResponse.HasPreviousPage);
@@ -219,13 +284,10 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task SearchJobs_WithQuery_ReturnsOk()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs/search?q=developer");
         
-        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         
-        // Optional: Verify response content
         var content = await response.Content.ReadAsStringAsync();
         var results = JsonSerializer.Deserialize<IEnumerable<JobListing>>(content, _jsonOptions);
         Assert.NotNull(results);
@@ -234,26 +296,21 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task SearchJobs_WithoutQuery_ReturnsOk()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs/search?q=");
         
-        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
     public async Task GetCompanyJobs_WithValidCompanyId_ReturnsOk()
     {
-        // Arrange - Use TechCorp ID from your seed data
+        // Using TechCorp ID from seed data
         var companyId = Guid.Parse("75ba7d3e-2b50-4841-860e-cbfb4e54e4df");
         
-        // Act
         var response = await _client.GetAsync($"/api/v1/jobs/company/{companyId}/compiled");
         
-        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         
-        // Optional: Verify response can be deserialized
         var content = await response.Content.ReadAsStringAsync();
         var jobs = JsonSerializer.Deserialize<IEnumerable<JobListing>>(content, _jsonOptions);
         Assert.NotNull(jobs);
@@ -262,38 +319,19 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task GetCompanyJobs_WithInvalidCompanyId_ReturnsNotFound()
     {
-        // Arrange
         var invalidCompanyId = Guid.NewGuid();
-        
-        // Act
         var response = await _client.GetAsync($"/api/v1/jobs/company/{invalidCompanyId}/compiled");
         
-        // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetJobById_WithInvalidId_ReturnsNotFound()
-    {
-        // Arrange
-        var invalidId = Guid.NewGuid();
-        
-        // Act
-        var response = await _client.GetAsync($"/api/v1/jobs/{invalidId}");
-        
-        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobs_WithFiltering_ReturnsFilteredResults()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs?location=Remote");
         var content = await response.Content.ReadAsStringAsync();
         var pagedResponse = JsonSerializer.Deserialize<PagedResponse<JobResponse>>(content, _jsonOptions);
         
-        // Assert
         Assert.NotNull(pagedResponse);
         if (pagedResponse.Data.Any())
         {
@@ -305,7 +343,6 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
     [Fact]
     public async Task PatchJob_WithoutToken_Returns401()
     {
-        // Arrange
         var jobId = Guid.NewGuid();
         var patchData = new UpdateJobListingRequest
         {
@@ -317,40 +354,32 @@ public class JobsControllerTests : IClassFixture<WebApplicationFactoryFixture>
             Encoding.UTF8,
             "application/json");
         
-        // Act
         var response = await _client.PatchAsync($"/api/v1/jobs/{jobId}", content);
         
-        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobs_WithInvalidPageNumber_ReturnsBadRequest()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=0&pageSize=5");
         
-        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobs_WithInvalidPageSize_ReturnsBadRequest()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=1&pageSize=0");
         
-        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task GetJobs_WithExcessivePageSize_ReturnsBadRequest()
     {
-        // Act - Assuming max page size is 100
         var response = await _client.GetAsync("/api/v1/jobs?pageNumber=1&pageSize=1000");
         
-        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

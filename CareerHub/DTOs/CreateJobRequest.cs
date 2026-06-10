@@ -11,6 +11,8 @@ public class CreateJobRequest : IValidatableObject
 
     public Guid CompanyId { get; set; }
 
+    public DateTime ExpiresAt { get; set; }
+
     [Required(ErrorMessage = "Location is required.")]
     public string Location { get; set; } = string.Empty;
 

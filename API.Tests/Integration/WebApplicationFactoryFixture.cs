@@ -6,15 +6,14 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using Testcontainers.PostgreSql; // Add this NuGet package
+using Testcontainers.PostgreSql;
 using System.Threading.Tasks;
 
 namespace API.Tests.Integration;
 
 public class WebApplicationFactoryFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder()
-        .WithImage("postgres:15")
+    private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder("postgres:16")
         .WithDatabase("CareerHubTestDB")
         .WithUsername("test_user")
         .WithPassword("test_password")
@@ -40,10 +39,12 @@ public class WebApplicationFactoryFixture : WebApplicationFactory<Program>, IAsy
             var serviceProvider = services.BuildServiceProvider();
             using var scope = serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<CareerHubDbContext>();
-            context.Database.EnsureCreated();
+            
+            context.Database.Migrate();
         });
         
         builder.UseEnvironment("Test");
+        
     }
 
     public async Task InitializeAsync()

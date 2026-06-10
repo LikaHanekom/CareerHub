@@ -1,7 +1,0 @@
-## Build outputs
-bin/
-obj/
-
-## User-specific files
-.vs/
-.vscode/

@@ -6257,8 +6257,8 @@
     },
     "CareerHub.Api/1.0.0": {
       "type": "project",
-      "path": "../CAREERHUB/CareerHub.Api.csproj",
-      "msbuildProject": "../CAREERHUB/CareerHub.Api.csproj"
+      "path": "../CareerHub/CareerHub.Api.csproj",
+      "msbuildProject": "../CareerHub/CareerHub.Api.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -6302,8 +6302,8 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj": {
-              "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CAREERHUB\\CareerHub.Api.csproj"
+            "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj": {
+              "projectPath": "C:\\Users\\alika\\OneDrive\\Documents\\Alika IT\\Bitcube\\CareerHub\\CareerHub\\CareerHub.Api.csproj"
             }
           }
         }
